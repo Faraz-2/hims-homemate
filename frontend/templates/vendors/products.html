@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, empty, kpi with context %}
+{% block title %}{{ vendor.name }}: product list{% endblock %}
+{% block heading %}{{ vendor.name }}: products and prices{% endblock %}
+{% block subheading %}{{ vendor.category or 'Vendor' }} · menu, catalogue or service list. Add, edit, reprice or delete items any time.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('vendors.detail', vid=vendor.id) }}">Back to vendor</a>
+  <a class="btn ghost" href="{{ url_for('vendor_products.export', vid=vendor.id) }}">{{ icon('download', 16) }} Export CSV</a>
+  {% if can_edit %}<a class="btn secondary" href="{{ url_for('vendor_products.import_csv', vid=vendor.id) }}">{{ icon('upload', 16) }} Import CSV</a>
+  <a class="btn" href="{{ url_for('vendor_products.new', vid=vendor.id) }}">{{ icon('plus', 16) }} Add item</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="grid cols-4">
+  {{ kpi('Items', stats.total, 'list') }}{{ kpi('Available now', stats.available, 'check') }}
+  {{ kpi('Lowest price', stats.low|money, 'dollar') }}{{ kpi('Highest price', stats.high|money, 'dollar', None, 'Average ' ~ (stats.average|money)) }}
+</div>
+<form class="filters mt" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name, description, code"></div>
+  <div class="f"><label for="section">Section</label><select id="section" name="section" data-autosubmit><option value="">All</option>{% for s in sections %}<option{% if section == s %} selected{% endif %}>{{ s }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="show">Show</label><select id="show" name="show" data-autosubmit><option value="all">All items</option><option value="available"{% if show == 'available' %} selected{% endif %}>Available only</option><option value="unavailable"{% if show == 'unavailable' %} selected{% endif %}>Unavailable only</option></select></div>
+  <button class="btn secondary" type="submit">Apply</button></form>
+{% if groups %}
+{% for name, items in groups.items() %}
+<section class="card mt"><div class="card-head"><h2>{{ name }}</h2><small>{{ items|length }} item{{ '' if items|length == 1 else 's' }}</small></div><div class="card-body">
+<div class="table-wrap"><table class="data"><thead><tr><th>Item</th><th>Sold per</th><th class="num">Price</th><th>Status</th><th></th></tr></thead><tbody>
+{% for p in items %}
+  <tr id="item-{{ p.id }}"><td><b>{{ p.name }}</b>{% if p.sku %} <small>Code {{ p.sku }}</small>{% endif %}{% if p.description %}<small>{{ p.description }}</small>{% endif %}</td>
+    <td>{{ p.unit or 'each' }}</td><td class="num"><a class="title" href="{{ url_for('vendor_products.history', vid=vendor.id, pid=p.id) }}" title="Price history">{{ p.price|money }}</a></td>
+    <td>{{ badge('available' if p.available else 'on_hold', 'Available' if p.available else 'Unavailable') }}</td>
+    <td class="nowrap">{% if can_edit %}
+      <a class="btn ghost sm" href="{{ url_for('vendor_products.edit', vid=vendor.id, pid=p.id) }}">{{ icon('edit', 14) }} Edit</a>
+      <form method="post" action="{{ url_for('vendor_products.toggle', vid=vendor.id, pid=p.id) }}" class="inline">{{ csrf() }}<button class="btn secondary sm" type="submit">{{ 'Mark unavailable' if p.available else 'Mark available' }}</button></form>
+      <form method="post" action="{{ url_for('vendor_products.delete', vid=vendor.id, pid=p.id) }}" class="inline" data-confirm="Delete {{ p.name }} from this vendor's list? Its price history is deleted too.">{{ csrf() }}<button class="btn danger sm" type="submit">{{ icon('trash', 14) }} Delete</button></form>
+    {% endif %}</td></tr>
+{% endfor %}</tbody></table></div></div></section>
+{% endfor %}
+<p class="muted mt">Showing {{ shown }} of {{ stats.total }} item(s).</p>
+{% elif stats.total %}<div class="card mt">{% call empty('Nothing matches', 'Clear the search or filters to see the full list.', 'search') %}{% endcall %}</div>
+{% else %}<div class="card mt">{% call empty('No items yet', 'Add what this vendor sells: for a food vendor, the menu with a price for each dish.', 'list') %}{% if can_edit %}<a class="btn" href="{{ url_for('vendor_products.new', vid=vendor.id) }}">Add the first item</a>{% endif %}{% endcall %}</div>{% endif %}
+
+{% if can_edit and stats.total %}
+<section class="card mt"><div class="card-head"><h2>Change many prices at once</h2></div><div class="card-body">
+  <form method="post" action="{{ url_for('vendor_products.bulk_price', vid=vendor.id) }}" class="filters" data-confirm="Change these prices? Every change is saved in each item's price history.">{{ csrf() }}
+    <div class="f"><label for="percent">Change by (%)</label><input id="percent" name="percent" type="number" step="any" placeholder="10 or -5" required></div>
+    <div class="f"><label for="bsection">Applies to</label><select id="bsection" name="section"><option value="">Every item</option>{% for s in sections %}<option>{{ s }}</option>{% endfor %}</select></div>
+    <button class="btn secondary" type="submit">Apply change</button></form>
+  <p class="muted">Use a negative number to lower prices. Example: 10 raises every price by 10%.</p>
+</div></section>
+{% endif %}
+{% endblock %}

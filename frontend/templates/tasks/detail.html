@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block with context %}
+{% block title %}{{ task.title }}{% endblock %}
+{% block heading %}{{ task.title }}{% endblock %}
+{% block subheading %}{{ badge(task.status) }} {{ badge(task.priority) }}{% if task.is_overdue %} <span class="badge tone-bad">Overdue</span>{% endif %}{% if task.project %} · <a href="{{ url_for('projects.detail', pid=task.project.id) }}">{{ task.project.name }}</a>{% endif %}{% if task.campaign %} · <a href="{{ url_for('campaigns.detail', cid=task.campaign.id) }}">{{ task.campaign.name }}</a>{% endif %}{% endblock %}
+{% block actions %}
+  <a class="btn ghost" href="{{ url_for('tasks.index') }}">Back to tasks</a>
+  {% if can_edit %}<a class="btn secondary" href="{{ url_for('tasks.edit', tid=task.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body">
+      <dl class="facts">
+        <div><dt>Assigned to</dt><dd>{{ task.assignee.name if task.assignee else 'Unassigned' }}</dd></div>
+        <div><dt>Created by</dt><dd>{{ task.created_by.name }}</dd></div>
+        <div><dt>Department</dt><dd>{{ task.department.name if task.department else '—' }}</dd></div>
+        <div><dt>Project</dt><dd>{% if task.project %}<a href="{{ url_for('projects.detail', pid=task.project.id) }}">{{ task.project.name }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Campaign</dt><dd>{% if task.campaign %}<a href="{{ url_for('campaigns.detail', cid=task.campaign.id) }}">{{ task.campaign.name }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Due date</dt><dd>{{ task.due_date|datefmt }}</dd></div>
+        <div><dt>Created</dt><dd>{{ task.created_at|dtfmt }}</dd></div>
+        <div><dt>Completed</dt><dd>{{ task.completed_at|dtfmt }}</dd></div>
+      </dl>
+      {% if task.description %}<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><div class="prose">{{ task.description }}</div>{% endif %}
+    </div></section>
+
+    <section class="card" id="checklist"><div class="card-head"><h2>Checklist</h2>{% set done, total = task.checklist_progress %}{% if total %}<small>{{ done }} of {{ total }} done</small>{% endif %}</div><div class="card-body">
+      {% if task.checklist %}
+      <ul class="checklist">
+        {% for item in task.checklist %}
+        <li class="{{ 'done' if item.done }}">
+          <form method="post" action="{{ url_for('tasks.checklist_toggle', tid=task.id, iid=item.id) }}" class="inline">{{ csrf() }}
+            <button type="submit" class="check-toggle" aria-label="{{ 'Mark not done' if item.done else 'Mark done' }}">{{ icon('check', 14) if item.done else '' }}</button></form>
+          <span>{{ item.text }}</span>
+          {% if can_work %}<form method="post" action="{{ url_for('tasks.checklist_delete', tid=task.id, iid=item.id) }}" class="inline" data-confirm="Remove this item?">{{ csrf() }}<button class="btn ghost sm" type="submit">{{ icon('x', 12) }}</button></form>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}<p class="muted">No checklist items yet.</p>{% endif %}
+      {% if can_work %}<form method="post" action="{{ url_for('tasks.checklist_add', tid=task.id) }}" class="step-form mt" style="max-width:420px">{{ csrf() }}
+        <input type="text" name="text" maxlength="300" placeholder="Add a checklist item" aria-label="New checklist item" required>
+        <button class="btn secondary sm" type="submit">Add</button></form>{% endif %}
+    </div></section>
+
+    {% if can_work %}
+    <section class="card"><div class="card-head"><h2>Attach a file</h2></div><div class="card-body">
+      <p class="muted">Attach photos, screenshots, videos or documents as proof of your work. Every file is kept as a new version, so earlier submissions stay in the history below.</p>
+      <form method="post" action="{{ url_for('tasks.submit_work', tid=task.id) }}" enctype="multipart/form-data" class="step-form" style="gap:10px">{{ csrf() }}
+        <input type="file" name="file" required><span class="file-name help"></span>
+        <input type="text" name="note" maxlength="300" placeholder="Note (optional)" aria-label="Note">
+        <button class="btn" type="submit">{{ icon('upload', 16) }} Attach file</button>
+      </form>
+    </div></section>
+    {% endif %}
+
+    <section class="card"><div class="card-head"><h2>Comments and history</h2></div><div class="card-body">
+      {{ comments_block(comments, url_for('tasks.comment', tid=task.id), file_endpoint='tasks.submission_file') }}
+    </div></section>
+  </div>
+
+  <aside class="stack">
+    <section class="card"><div class="card-head"><h2>Move this task</h2></div><div class="card-body">
+      <p class="muted">Where it is now: <b>{{ label(task.status) }}</b></p>
+      {% if steps %}
+        <div class="stack" style="gap:14px">
+        {% for s in steps %}
+          <form class="step-form" method="post" action="{{ url_for('tasks.transition', tid=task.id) }}"{% if s.style == 'danger' %} data-confirm="{{ s.label }}?"{% endif %}>
+            {{ csrf() }}<input type="hidden" name="to" value="{{ s.dst }}">
+            {% if s.note %}<label class="sr-only" for="note-{{ s.dst }}">Note</label><textarea id="note-{{ s.dst }}" name="note" rows="2" placeholder="Why? (required)" required></textarea>{% endif %}
+            <button class="btn {{ 'danger' if s.style == 'danger' else ('secondary' if s.style == 'secondary' else '') }}" type="submit">{{ s.label }}</button>
+          </form>
+        {% endfor %}
+        </div>
+      {% else %}<p class="muted">There is nothing for you to do on this task right now.</p>{% endif %}
+    </div></section>
+    {% if can_delete %}
+    <section class="card"><div class="card-body">
+      <form method="post" action="{{ url_for('tasks.delete', tid=task.id) }}" data-confirm="Delete this task permanently?">{{ csrf() }}<button class="btn danger block" type="submit">Delete task</button></form>
+    </div></section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

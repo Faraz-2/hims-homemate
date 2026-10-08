@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Import product list{% endblock %}
+{% block heading %}Import {{ vendor.name }}'s list{% endblock %}
+{% block subheading %}Upload a CSV (you can save any Excel sheet as CSV). Items that already exist are updated; new ones are added.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('vendor_products.index', vid=vendor.id) }}">Back to list</a>{% endblock %}
+{% block content %}
+<div class="card form-card"><div class="card-body">
+  <p>Columns: <code>name</code> and <code>price</code> are required; <code>section</code>, <code>unit</code>, <code>description</code>, <code>available</code> (yes/no) and <code>sku</code> are optional. Items match on name plus section.</p>
+  <p><a href="{{ url_for('vendor_products.sample') }}">{{ icon('download', 14) }} Download a sample file</a></p>
+  <form method="post" enctype="multipart/form-data">{{ csrf() }}
+    <div class="field full"><label for="file">CSV file</label><input type="file" id="file" name="file" accept=".csv" required></div>
+    <div class="form-actions"><button class="btn" type="submit">Import</button><a class="btn ghost" href="{{ url_for('vendor_products.index', vid=vendor.id) }}">Cancel</a></div>
+  </form>
+</div></div>
+{% if result %}<section class="card mt"><div class="card-head"><h2>Result</h2></div><div class="card-body">
+  <p><b>{{ result.added }}</b> added · <b>{{ result.updated }}</b> updated · <b>{{ result.skipped|length }}</b> skipped</p>
+  {% if result.skipped %}<ul>{% for s in result.skipped %}<li>{{ s }}</li>{% endfor %}</ul>{% endif %}
+</div></section>{% endif %}
+{% endblock %}

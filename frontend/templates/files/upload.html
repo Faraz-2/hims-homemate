@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Upload files{% endblock %}
+{% block heading %}Upload files{% endblock %}
+{% block subheading %}Any file type, several at once. They are stored under your department and name and backed up automatically.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('files.index') }}">Back to files</a>{% endblock %}
+{% block content %}
+<div class="card form-card"><div class="card-body">
+  <form method="post" enctype="multipart/form-data" novalidate>{{ csrf() }}
+    <div class="form-grid">
+      <div class="field full"><label for="files">Files</label><input type="file" id="files" name="files" multiple required><small class="help">Up to {{ limit }} per file. Programs and scripts that run when opened ({{ blocked }}) are blocked; put them in a .zip if you must keep them.</small></div>
+      <div class="field"><label for="folder">Folder</label><input id="folder" name="folder" list="folder-list" value="{{ v.folder }}" maxlength="80"><datalist id="folder-list">{% for f in folders %}<option value="{{ f }}">{% endfor %}</datalist><small class="help">Pick one or type a new name to create a folder.</small></div>
+      <div class="field"><label for="visibility">Who can see it?</label><select id="visibility" name="visibility">{% for k, n in options %}<option value="{{ k }}"{% if v.visibility == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+      <div class="field full"><label for="title">Title (optional, one file only)</label><input id="title" name="title" value="{{ v.title }}"></div>
+      <div class="field full"><label for="description">Description (optional)</label><input id="description" name="description" value="{{ v.description }}"></div>
+    </div>
+    <div class="form-actions"><button class="btn" type="submit">Upload</button><a class="btn ghost" href="{{ url_for('files.index') }}">Cancel</a></div>
+  </form>
+</div></div>
+{% endblock %}

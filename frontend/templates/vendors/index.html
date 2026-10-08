@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty with context %}
+{% block title %}Vendors{% endblock %}
+{% block heading %}Vendors{% endblock %}
+{% block subheading %}Suppliers, contacts and payment terms in one register.{% endblock %}
+{% block actions %}{% if can_manage %}<a class="btn" href="{{ url_for('vendors.new') }}">{{ icon('plus', 16) }} Add vendor</a>{% endif %}{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name, contact, email"></div>
+  <div class="f"><label for="category">Category</label><select id="category" name="category" data-autosubmit><option value="">All</option>{% for c in categories %}<option{% if category == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="">All</option>{% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Apply</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Vendor</th><th>Category</th><th>Contact</th><th>Terms</th><th class="num">Products</th><th class="num">Spend (approved)</th><th>Rating</th><th>Status</th></tr></thead><tbody>
+{% for v in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('vendors.detail', vid=v.id) }}">{{ v.name }}</a></td><td>{{ v.category or '—' }}</td>
+    <td>{{ v.contact_person or '—' }}<small>{{ v.phone or v.email or '' }}</small></td><td>{{ v.payment_terms or '—' }}</td><td class="num"><a class="title" href="{{ url_for('vendor_products.index', vid=v.id) }}">{{ counts.get(v.id, 0) }}</a></td>
+    <td class="num">{{ spend.get(v.id, 0)|money }}</td><td>{{ ('★' * v.rating) ~ ('☆' * (5 - v.rating)) if v.rating else '—' }}</td><td>{{ badge(v.status) }}</td></tr>
+{% endfor %}</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No vendors yet', 'Add your first supplier to keep contact and payment details together.', 'truck') %}{% endcall %}</div>{% endif %}
+{% endblock %}

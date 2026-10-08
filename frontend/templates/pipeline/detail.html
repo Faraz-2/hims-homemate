@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block with context %}
+{% block title %}{{ obj.name }}{% endblock %}
+{% block heading %}{{ obj.name }}{% endblock %}
+{% block subheading %}{{ badge(obj.stage) }}{% endblock %}
+{% block actions %}
+  <a class="btn ghost" href="{{ url_for(cfg.name ~ '.board') }}">Back to pipeline</a>
+  {% if can_edit %}<a class="btn secondary" href="{{ url_for(cfg.name ~ '.edit', iid=obj.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body"><dl class="facts">
+      {% for name, value in info %}<div><dt>{{ name }}</dt><dd class="{{ 'prose' if name == 'Notes' }}">{{ value if value else '—' }}</dd></div>{% endfor %}
+    </dl></div></section>
+    <section class="card"><div class="card-head"><h2>Notes and history</h2></div><div class="card-body">
+      {{ comments_block(comments, url_for(cfg.name ~ '.comment', iid=obj.id), placeholder='Add a call note or update') }}
+    </div></section>
+  </div>
+  <aside class="stack">
+    {% if can_edit %}
+    <section class="card"><div class="card-head"><h2>Stage</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for(cfg.name ~ '.move', iid=obj.id) }}" class="step-form">{{ csrf() }}
+        <select name="stage" aria-label="Stage">{% for key, name in cfg.stages %}<option value="{{ key }}"{% if key == obj.stage %} selected{% endif %}>{{ name }}</option>{% endfor %}</select>
+        <button class="btn" type="submit">Update stage</button></form>
+    </div></section>
+    {% endif %}
+    {% if can_delete %}
+    <section class="card"><div class="card-body"><form method="post" action="{{ url_for(cfg.name ~ '.delete', iid=obj.id) }}" data-confirm="Delete this {{ cfg.singular }} permanently?">{{ csrf() }}<button class="btn danger block" type="submit">Delete {{ cfg.singular }}</button></form></div></section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}System settings{% endblock %}
+{% block heading %}System settings{% endblock %}
+{% block subheading %}These apply to the whole company. Changes take effect straight away.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.index') }}">Back to administration</a>{% endblock %}
+{% macro row(name, label_text, help='', kind='text') %}
+  <div class="field{% if errors.get(name) %} has-error{% endif %}"><label for="s_{{ name }}">{{ label_text }}</label>
+    <input id="s_{{ name }}" name="{{ name }}" type="{{ kind }}" value="{{ v[name] }}"{% if kind == 'number' %} min="0" step="1"{% endif %}>
+    {% if help %}<small class="help">{{ help }}</small>{% endif %}{% if errors.get(name) %}<small class="error">{{ errors[name] }}</small>{% endif %}</div>
+{% endmacro %}
+{% block content %}
+<form method="post" class="stack" style="max-width:860px">{{ csrf() }}
+  <section class="card accent"><div class="card-head"><h2>Company</h2></div><div class="card-body"><div class="form-grid">
+    {{ row('company_name', 'Company name', 'Shown in the sidebar and on the sign-in page.') }}
+    {{ row('currency', 'Currency label', 'Shown next to money amounts, for example PKR.') }}
+    <div class="field"><label>Time zone</label><input type="text" value="{{ timezone }}" disabled><small class="help">Set with the HIMS_TIMEZONE environment variable.</small></div>
+  </div></div></section>
+  <section class="card"><div class="card-head"><h2>Working week and attendance</h2></div><div class="card-body"><div class="form-grid">
+    {{ row('work_start', 'Work starts', 'Use 24-hour time, for example 09:00.') }}
+    {{ row('work_end', 'Work ends', '24-hour time, for example 18:00.') }}
+    {{ row('late_grace_minutes', 'Grace period (minutes)', 'Check-ins after start time plus this many minutes count as late.', 'number') }}
+    <div class="field full{% if errors.get('working_days') %} has-error{% endif %}"><label>Working days</label>
+      <div class="tags">{% for n, name in days %}<label class="check chip"><input type="checkbox" name="working_days" value="{{ n }}"{% if n in active_days %} checked{% endif %}> {{ name }}</label>{% endfor %}</div>
+      {% if errors.get('working_days') %}<small class="error">{{ errors['working_days'] }}</small>{% endif %}</div>
+  </div></div></section>
+  <section class="card"><div class="card-head"><h2>Leave allowance per year (working days)</h2></div><div class="card-body"><div class="form-grid">
+    {{ row('leave_annual', 'Annual leave', '', 'number') }}{{ row('leave_sick', 'Sick leave', '', 'number') }}{{ row('leave_casual', 'Casual leave', '', 'number') }}
+  </div></div></section>
+  <section class="card"><div class="card-head"><h2>Backups</h2></div><div class="card-body"><div class="form-grid">
+    {{ row('backup_keep', 'Backups to keep on the server', 'Older backups are removed automatically (minimum 3).', 'number') }}
+    <div class="field full"><label class="check"><input type="checkbox" name="auto_backup" value="1"{% if v.auto_backup == '1' %} checked{% endif %}> <span>Make a complete backup (full + by department + by person) automatically every day</span></label><small class="help">Runs while HIMS is open, at the time below or the first time it is checked after that.</small></div>
+    {{ row('auto_backup_time', 'Daily backup time', '24-hour time, for example 22:00.') }}
+    {{ row('backup_keep_runs', 'Complete backup runs to keep', 'Older dated runs are removed automatically (minimum 2).', 'number') }}
+    {{ row('backup_secondary_path', 'Second copy folder', 'Optional. A folder on an external drive or synced cloud folder. Every backup is also copied here, for example D:\\HIMS-Backups.') }}
+  </div></div></section>
+  <div><button class="btn" type="submit">Save settings</button></div>
+</form>
+{% endblock %}

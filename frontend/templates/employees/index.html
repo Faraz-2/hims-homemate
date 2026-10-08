@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Employees{% endblock %}
+{% block heading %}Employees{% endblock %}
+{% block subheading %}Everyone at Home Mate, by department and role.{% endblock %}
+{% block actions %}
+  {% if can_add %}<a class="btn" href="{{ url_for('employees.new') }}">{{ icon('plus', 16) }} Add employee</a>
+  <a class="btn secondary" href="{{ url_for('people.hire') }}">{{ icon('user-plus', 16) }} Hire into departments</a>{% endif %}
+  {% if has_perm(current_user, 'employees.remove') or has_perm(current_user, 'employees.manage') %}<a class="btn ghost" href="{{ url_for('people.removed') }}">Removed from team</a>{% endif %}
+  {% if has_perm(current_user, 'employees.manage') %}<a class="btn secondary" href="{{ url_for('employees.import_csv') }}">{{ icon('upload', 16) }} Import from spreadsheet</a>{% endif %}
+  {% if has_perm(current_user, 'reports.export') and has_perm(current_user, 'employees.manage') %}<a class="btn ghost" href="{{ url_for('reports.export', name='employees') }}">{{ icon('download', 16) }} Export CSV</a>{% endif %}
+{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name, email, title, code"></div>
+  <div class="f"><label for="dept">Department</label><select id="dept" name="dept" data-autosubmit><option value="">All</option>{% for d in departments %}<option value="{{ d.id }}"{% if dept == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="role">Role</label><select id="role" name="role" data-autosubmit><option value="">All</option>{% for r in roles %}<option value="{{ r.id }}"{% if role == r.id %} selected{% endif %}>{{ r.name }}</option>{% endfor %}</select></div>
+  {% if can_manage %}<div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="active"{% if status == 'active' %} selected{% endif %}>Active</option><option value="inactive"{% if status == 'inactive' %} selected{% endif %}>Inactive</option><option value="all"{% if status == 'all' %} selected{% endif %}>Everyone</option></select></div>{% endif %}
+  <button class="btn secondary" type="submit">Search</button>
+</form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data">
+  <thead><tr><th>Employee</th><th>Department</th><th>Role</th><th>Contact</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for u in pager.items %}
+    <tr>
+      <td><div style="display:flex;gap:10px;align-items:center"><span class="avatar sm">{{ u.initials }}</span>
+        <span><a class="title" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.name }}</a><small>{{ u.job_title or '—' }} · {{ u.employee_code }}</small></span></div></td>
+      <td>{{ u.department.name if u.department else '—' }}</td>
+      <td>{{ u.title_label }}{% if u.employment_type != 'full_time' %}<small>{{ u.employment_label }}</small>{% endif %}</td>
+      <td>{{ u.email }}{% if u.phone %}<small>{{ u.phone }}</small>{% endif %}</td>
+      <td>{{ badge('active' if u.active else 'inactive') }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table></div>
+{{ pager(pager) }}
+{% else %}
+  <div class="card">{% call empty('No employees match', 'Try a different search or clear the filters.', 'users') %}{% endcall %}</div>
+{% endif %}
+{% endblock %}

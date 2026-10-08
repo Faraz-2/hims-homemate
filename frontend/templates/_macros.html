@@ -1,0 +1,102 @@
+{% macro csrf() %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">{% endmacro %}
+
+{% macro pager(p) %}
+  {% if p and p.total %}
+  <div class="pager">
+    <span>Showing {{ (p.page - 1) * p.per_page + 1 }}–{{ (p.page - 1) * p.per_page + p.items|length }} of {{ p.total }}</span>
+    {% if p.pages > 1 %}
+    <span class="links">
+      {% if p.has_prev %}<a class="btn ghost sm" href="{{ page_url(p.prev_num) }}">Previous</a>{% endif %}
+      <span>Page {{ p.page }} of {{ p.pages }}</span>
+      {% if p.has_next %}<a class="btn ghost sm" href="{{ page_url(p.next_num) }}">Next</a>{% endif %}
+    </span>
+    {% endif %}
+  </div>
+  {% endif %}
+{% endmacro %}
+
+{% macro empty(title, text='', icon_name='file') %}
+  <div class="empty">{{ icon(icon_name, 34) }}<h3>{{ title }}</h3>{% if text %}<p>{{ text }}</p>{% endif %}{{ caller() if caller else '' }}</div>
+{% endmacro %}
+
+{% macro kpi(label_text, value, icon_name='activity', href=None, hint='', tone='') %}
+  {% if href %}<a class="kpi {{ tone }}" href="{{ href }}">{% else %}<div class="kpi {{ tone }}">{% endif %}
+    <div class="k-label">{{ icon(icon_name, 16) }}{{ label_text }}</div>
+    <div class="k-value">{{ value }}</div>
+    {% if hint %}<div class="k-hint">{{ hint }}</div>{% endif %}
+  {% if href %}</a>{% else %}</div>{% endif %}
+{% endmacro %}
+
+{% macro form_fields(form) %}
+<div class="form-grid">
+  {% for f in form.fields %}
+  <div class="field{% if not f.half or f.type in ('textarea', 'file') %} full{% endif %}{% if f.error %} has-error{% endif %}">
+    {% if f.type == 'checkbox' %}
+      <label class="check"><input type="checkbox" name="{{ f.name }}" value="1"{% if f.value %} checked{% endif %}> <span>{{ f.label }}</span></label>
+    {% else %}
+      <label for="f_{{ f.name }}">{{ f.label }}{% if f.required %}<span class="req" aria-hidden="true"> *</span>{% endif %}</label>
+      {% if f.type == 'textarea' %}
+        <textarea id="f_{{ f.name }}" name="{{ f.name }}" rows="{{ f.rows }}" placeholder="{{ f.placeholder }}"{% if f.required %} required{% endif %}>{{ f.value }}</textarea>
+      {% elif f.type == 'select' %}
+        <select id="f_{{ f.name }}" name="{{ f.name }}"{% if f.required %} required{% endif %}>
+          <option value="">{{ f.blank_label }}</option>
+          {% for v, text in f.options %}<option value="{{ v }}"{% if f.is_selected(v) %} selected{% endif %}>{{ text }}</option>{% endfor %}
+        </select>
+      {% elif f.type == 'file' %}
+        <input type="file" id="f_{{ f.name }}" name="{{ f.name }}">
+        <span class="file-name help"></span>
+      {% elif f.type == 'password' %}
+        <input type="password" id="f_{{ f.name }}" name="{{ f.name }}" autocomplete="new-password"{% if f.min_length %} minlength="{{ f.min_length }}"{% endif %}{% if f.required %} required{% endif %}>
+      {% elif f.type == 'number' %}
+        <input type="number" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ f.value }}" step="any"{% if f.min is not none %} min="{{ f.min }}"{% endif %} placeholder="{{ f.placeholder }}"{% if f.required %} required{% endif %}>
+      {% else %}
+        <input type="{{ f.type }}" id="f_{{ f.name }}" name="{{ f.name }}" value="{{ f.value }}" placeholder="{{ f.placeholder }}"{% if f.required %} required{% endif %}>
+      {% endif %}
+    {% endif %}
+    {% if f.help %}<small class="help">{{ f.help }}</small>{% endif %}
+    {% if f.error %}<small class="error">{{ f.error }}</small>{% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{% macro comments_block(comments, post_url, allow_internal=False, placeholder='Write a comment', file_endpoint=None) %}
+<section id="comments" class="comments" aria-label="Comments and history">
+  {% for c in comments %}
+    <div class="comment {{ c.kind }}{% if c.internal %} internal{% endif %}">
+      <span class="avatar sm">{{ c.author.initials if c.author else '·' }}</span>
+      <div class="bubble">
+        <div class="who"><b>{{ c.author.name if c.author else 'System' }}</b><small>{{ c.created_at|dtfmt }}</small>
+          {% if c.internal %}<span class="badge tone-warn">Internal note</span>{% endif %}
+          {% if c.kind == 'submission' %}<span class="badge tone-progress">Version {{ c.version }}</span>{% endif %}</div>
+        <div class="prose">{{ c.body }}</div>
+        {% if c.attachment_file and file_endpoint %}<a class="attach" href="{{ url_for(file_endpoint, cid=c.id) }}">{{ icon('download', 14) }} {{ c.attachment_name }}</a>{% endif %}
+      </div>
+    </div>
+  {% else %}
+    <p class="muted">No comments yet.</p>
+  {% endfor %}
+</section>
+<form class="comment-form" method="post" action="{{ post_url }}">
+  {{ csrf() }}
+  <label class="sr-only" for="comment-body">Comment</label>
+  <textarea id="comment-body" name="body" rows="3" placeholder="{{ placeholder }}" required></textarea>
+  <div class="actions">
+    <button class="btn" type="submit">Post comment</button>
+    {% if allow_internal %}<label class="check"><input type="checkbox" name="internal" value="1"> Internal note (staff only)</label>{% endif %}
+  </div>
+</form>
+{% endmacro %}
+
+{% macro bars(rows, money=False, empty_text='Nothing to show for this period yet.') %}
+  {% set top = (rows|map(attribute=1)|max) if rows else 0 %}
+  {% if top %}
+  <div class="bars">
+    {% for name, value in rows %}
+      <div class="bar-row"><span>{{ name }}</span><span class="track"><span class="fill" style="width: {{ (100 * value / top)|round(1) }}%"></span></span><span class="v">{{ value|money if money else value|number }}</span></div>
+    {% endfor %}
+  </div>
+  {% else %}<p class="muted">{{ empty_text }}</p>{% endif %}
+{% endmacro %}
+
+{% macro person(user) %}{% if user %}{{ user.name }}{% else %}<span class="muted">Unassigned</span>{% endif %}{% endmacro %}

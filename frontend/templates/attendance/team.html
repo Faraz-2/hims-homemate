@@ -1,0 +1,33 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import kpi, empty with context %}
+{% block title %}Team attendance{% endblock %}
+{% block heading %}Team attendance{% endblock %}
+{% block subheading %}{{ day.strftime('%A, %d %B %Y') }}{% endblock %}
+{% block actions %}
+  <a class="btn ghost sm" href="{{ url_for('attendance.team', date=prev_day.isoformat(), dept=dept) }}">Previous day</a>
+  {% if next_day %}<a class="btn ghost sm" href="{{ url_for('attendance.team', date=next_day.isoformat(), dept=dept) }}">Next day</a>{% endif %}
+  <a class="btn secondary sm" href="{{ url_for('attendance.index') }}">My attendance</a>
+{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="date">Date</label><input id="date" name="date" type="date" value="{{ day.isoformat() }}"></div>
+  {% if current_user.is_admin_level %}<div class="f"><label for="dept">Department</label><select id="dept" name="dept" data-autosubmit><option value="">All departments</option>{% for d in departments %}<option value="{{ d.id }}"{% if dept == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn secondary" type="submit">Show</button>
+  {% if has_perm(current_user, 'reports.export') %}<a class="btn ghost" href="{{ url_for('reports.export', name='attendance', dept=dept) }}">{{ icon('download', 16) }} Export CSV</a>{% endif %}
+</form>
+<div class="grid cols-4">
+  {{ kpi('Present', summary.present, 'check', None, 'of ' ~ summary.total ~ ' people') }}
+  {{ kpi('Late', summary.late, 'clock', None, 'After the grace period', 'calm') }}
+  {{ kpi('On leave', summary.on_leave, 'calendar', None, 'Approved leave', 'calm') }}
+  {{ kpi('Not in', summary.absent, 'alert', None, 'No check-in or leave', 'alert' if summary.absent else 'calm') }}
+</div>
+<div class="table-wrap mt"><table class="data"><thead><tr><th>Employee</th><th>Department</th><th>Check in</th><th>Check out</th><th class="num">Hours</th><th>Status</th></tr></thead><tbody>
+{% for u, rec, state in rows %}
+  <tr><td><a class="title" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.name }}</a><small>{{ u.job_title or u.role.name }}</small></td>
+    <td>{{ u.department.name if u.department else '—' }}</td>
+    <td>{{ rec.check_in|timefmt if rec else '—' }}</td><td>{{ rec.check_out|timefmt if rec and rec.check_out else '—' }}</td>
+    <td class="num">{{ rec.hours if rec and rec.hours else '—' }}</td>
+    <td>{% if state == 'off' %}<span class="badge tone-neutral">Day off</span>{% else %}{{ badge(state) }}{% endif %}</td></tr>
+{% else %}<tr><td colspan="6"><p class="muted">No employees in this view.</p></td></tr>{% endfor %}
+</tbody></table></div>
+{% endblock %}

@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Export a backup{% endblock %}
+{% block heading %}Export a backup{% endblock %}
+{% block subheading %}Pick everyone, one department or one person, and optionally a date range. You get a zip of readable CSV files and the matching uploaded files, sorted by department, person and date.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.backups') }}">Back to backups</a>{% endblock %}
+{% block content %}
+{% if ready %}<div class="flash success"><span>Your backup is ready: <a href="{{ url_for('admin.backup_export_file', name=ready) }}"><b>{{ icon('download', 14) }} download {{ ready }}</b></a></span></div><br>{% endif %}
+<div class="card form-card"><div class="card-body"><form method="post">{{ csrf() }}
+  <div class="form-grid">
+    <div class="field"><label for="kind">What to back up</label><select id="kind" name="kind"><option value="all">Whole company</option><option value="department">One department</option><option value="user">One person</option></select></div>
+    <div class="field"><label for="department">Department (if one department)</label><select id="department" name="department"><option value="">Select…</option>{% for d in depts %}<option value="{{ d.id }}">{{ d.name }}</option>{% endfor %}</select></div>
+    <div class="field"><label for="user">Person (if one person)</label><select id="user" name="user"><option value="">Select…</option>{% for u in people %}<option value="{{ u.id }}">{{ u.name }}{% if u.employee_code %} ({{ u.employee_code }}){% endif %}{% if not u.active %} — inactive{% endif %}</option>{% endfor %}</select></div>
+    <div class="field"></div>
+    <div class="field"><label for="start">From date (optional)</label><input id="start" name="start" type="date"></div>
+    <div class="field"><label for="end">To date (optional)</label><input id="end" name="end" type="date"></div>
+  </div>
+  <div class="form-actions"><button class="btn" type="submit">Create backup</button></div>
+</form></div></div>
+{% if existing %}<section class="card mt"><div class="card-head"><h2>Recent exports</h2></div><div class="card-body"><ul class="list scroll-list">{% for f in existing %}<li><a class="t" href="{{ url_for('admin.backup_export_file', name=f.name) }}">{{ f.name }}</a><small>{{ f.size|filesize }}</small></li>{% endfor %}</ul></div></section>{% endif %}
+{% endblock %}

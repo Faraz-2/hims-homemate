@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty with context %}
+{% block title %}Campaigns{% endblock %}
+{% block heading %}Campaigns{% endblock %}
+{% block subheading %}Plan campaigns, track who they're aimed at, and log reach, leads and conversions as they run.{% endblock %}
+{% block actions %}{% if can_create %}<a class="btn" href="{{ url_for('campaigns.new') }}">{{ icon('plus', 16) }} New campaign</a>{% endif %}{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="open"{% if status == 'open' %} selected{% endif %}>Open</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>{% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Apply</button>
+</form>
+{% if pager.items %}
+<div class="grid cols-3">
+  {% for c in pager.items %}
+  <a class="dept-card" href="{{ url_for('campaigns.detail', cid=c.id) }}" style="text-decoration:none;color:inherit">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><h2 style="font-size:1.05rem">{{ c.name }}</h2>{{ badge(c.status) }}</div>
+    <p class="muted" style="margin:0">{{ c.department.name if c.department else '—' }} · {{ c.platform_list|join(', ') if c.platform_list else 'No platform set' }}</p>
+    <div class="stats"><span><b>{{ c.reach }}</b>Reach</span><span><b>{{ c.leads_generated }}</b>Leads</span><span><b class="{{ 'overdue' if c.is_overdue }}">{{ c.end_date|datefmt if c.end_date else '—' }}</b>Ends</span></div>
+  </a>
+  {% endfor %}
+</div>
+{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No campaigns yet', 'Create one to start planning reach, audience and budget.', 'megaphone') %}{% endcall %}</div>{% endif %}
+{% endblock %}

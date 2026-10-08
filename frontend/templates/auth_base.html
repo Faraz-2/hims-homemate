@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F47B20">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HIMS">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-128.png') }}">
+  <title>{% block title %}Sign in{% endblock %} | HIMS</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-32.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/hims.css') }}">
+</head>
+<body>
+{% block body %}{% block content %}{% endblock %}{% endblock %}
+<script src="{{ url_for('static', filename='js/hims.js') }}"></script>
+</body>
+</html>

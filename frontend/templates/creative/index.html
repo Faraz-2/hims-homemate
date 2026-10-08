@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty, kpi with context %}
+{% block title %}Design and content{% endblock %}
+{% block heading %}Design and content requests{% endblock %}
+{% block subheading %}Ask the Marketing content and creation team for banners, posts, videos, copy and more.{% endblock %}
+{% block actions %}<a class="btn" href="{{ url_for('creative.new') }}">{{ icon('plus', 16) }} New request</a>{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  {{ kpi('Open requests', counts.open, 'pen-tool') }}
+  {{ kpi('Waiting for review', counts.review, 'user-check', None, 'Sent back to the requester for approval', 'calm') }}
+  {{ kpi('Not picked up yet', counts.unassigned, 'clock', url_for('creative.index', box='unassigned') if staff else None, '', 'alert' if counts.unassigned and staff else 'calm') }}
+</div>
+<div class="tabs mt">
+  {% for key, name in ([('all', 'All requests')] if staff else []) + [('mine', 'Requested by me')] + ([('assigned', 'Assigned to me'), ('unassigned', 'Unassigned')] if staff else []) %}
+    <a class="{{ 'on' if box == key }}" href="{{ url_for('creative.index', box=key, status=status) }}">{{ name }}</a>
+  {% endfor %}
+</div>
+<form class="filters" method="get"><input type="hidden" name="box" value="{{ box }}">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="open"{% if status == 'open' %} selected{% endif %}>Open</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>{% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="kind">Type</label><select id="kind" name="kind" data-autosubmit><option value="">Any</option>{% for k in kinds %}<option{% if kind == k %} selected{% endif %}>{{ k }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Apply</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Request</th><th>Type</th><th>Requested by</th><th>Working on it</th><th>Needed by</th><th>Priority</th><th>Status</th></tr></thead><tbody>
+{% for r in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('creative.detail', rid=r.id) }}">{{ r.title }}</a></td><td>{{ r.kind }}</td>
+    <td>{{ r.requested_by.name }}<small>{{ r.requesting_department.name if r.requesting_department else '' }}</small></td>
+    <td>{{ r.assignee.name if r.assignee else '—' }}</td>
+    <td class="nowrap">{{ r.due_date|datefmt }}{% if r.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td><td>{{ badge(r.priority) }}</td><td>{{ badge(r.status) }}</td></tr>
+{% endfor %}</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No requests here', 'Send the team a brief and it will show up in this list.', 'pen-tool') %}{% endcall %}</div>{% endif %}
+{% endblock %}

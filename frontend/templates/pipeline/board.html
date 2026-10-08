@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, empty with context %}
+{% block title %}{{ cfg.title }}{% endblock %}
+{% block heading %}{{ cfg.title }}{% endblock %}
+{% block subheading %}{{ total }} {{ cfg.singular }}{{ 's' if total != 1 }} in the pipeline. Move a card with the stage menu on it.{% endblock %}
+{% block actions %}
+  {% if cfg.name == 'leads' and has_perm(current_user, 'reports.export') %}<a class="btn ghost" href="{{ url_for('reports.export', name='leads') }}">{{ icon('download', 16) }} Export CSV</a>{% endif %}
+  <a class="btn" href="{{ url_for(cfg.name ~ '.new') }}">{{ icon('plus', 16) }} Add {{ cfg.singular }}</a>
+{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name or {{ 'company' if cfg.name == 'leads' else 'position' }}"></div>
+  <div class="f"><label for="owner">Owner</label><select id="owner" name="owner" data-autosubmit><option value="">Everyone</option><option value="mine"{% if owner == 'mine' %} selected{% endif %}>Mine only</option></select></div>
+  {% if departments %}<div class="f"><label for="dept">Department</label><select id="dept" name="dept" data-autosubmit><option value="">All</option>{% for d in departments %}<option value="{{ d.id }}"{% if dept == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn secondary" type="submit">Apply</button>
+</form>
+<div class="board">
+  {% for col in columns %}
+  <section class="col {{ col.key }}" aria-label="{{ col.label }}">
+    <div class="col-head"><span><b>{{ col.label }}</b>{% if col.total %}<small>{{ col.total|money }}</small>{% endif %}</span><span class="n">{{ col.count }}</span></div>
+    <div class="col-body">
+      {% for c in col.cards %}
+      <article class="kcard">
+        <a class="t" href="{{ url_for(cfg.name ~ '.detail', iid=c.id) }}">{{ c.title }}</a>
+        <span class="muted">{{ c.subtitle }}</span>
+        {% for line in c.lines %}<span class="muted" style="font-size:.84rem">{{ line }}</span>{% endfor %}
+        <div class="meta"><span class="amount">{% if c.amount %}{{ c.amount|money }}{% endif %}</span>
+          {% if c.due %}<span class="{{ 'overdue' if c.overdue }}">{{ c.due_label }} {{ c.due|datefmt('%d %b') }}</span>{% elif c.tag %}<span class="chip">{{ c.tag }}</span>{% endif %}</div>
+        <form method="post" action="{{ url_for(cfg.name ~ '.move', iid=c.id) }}">{{ csrf() }}
+          <label class="sr-only" for="stage-{{ c.id }}">Move to stage</label>
+          <select id="stage-{{ c.id }}" name="stage" data-autosubmit>
+            {% for key, name in cfg.stages %}<option value="{{ key }}"{% if key == col.key %} selected{% endif %}>{{ name }}</option>{% endfor %}
+          </select>
+        </form>
+      </article>
+      {% else %}<p class="muted" style="padding:6px">Empty.</p>{% endfor %}
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% endblock %}

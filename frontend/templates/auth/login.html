@@ -1,0 +1,31 @@
+{% extends 'auth_base.html' %}
+{% block title %}Sign in{% endblock %}
+{% block content %}
+<div class="auth">
+  <section class="auth-side" aria-hidden="false">
+    <a class="brand" href="{{ url_for('auth.login') }}"><img src="{{ url_for('static', filename='img/logo.png') }}" alt=""><span><b>{{ company_name }}</b><small>HIMS</small></span></a>
+    <div>
+      <h1>One home for every Home Mate team.</h1>
+      <p>Tasks, attendance, leave, requests and reports, in a single place that runs inside our own office network.</p>
+    </div>
+    <small style="color:#8f8a84">Internal system. Access is limited to Home Mate staff.</small>
+  </section>
+  <section class="auth-main">
+    <div class="auth-box">
+      <h2>Sign in</h2>
+      <p class="muted">Use your Home Mate email and password.</p>
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}<div class="flash {{ category }}" role="status"><span>{{ message }}</span></div>{% endfor %}
+      {% endwith %}
+      {% if error %}<div class="flash error" role="alert"><span>{{ error }}</span></div>{% endif %}
+      <form method="post" action="{{ url_for('auth.login', next=request.args.get('next')) }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div class="field"><label for="email">Email</label><input id="email" name="email" type="email" autocomplete="username" required autofocus value="{{ request.form.get('email', '') }}"></div>
+        <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password" required></div>
+        <button class="btn block" type="submit">Sign in</button>
+      </form>
+      <p class="auth-foot">Forgot your password? Ask your department head or IT to reset it for you.</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

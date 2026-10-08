@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, empty with context %}
+{% block title %}Backups{% endblock %}
+{% block heading %}Backups{% endblock %}
+{% block subheading %}Each backup is a single zip with the database and every uploaded file.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.index') }}">Back to administration</a>
+  <form method="post" action="{{ url_for('admin.backup_create') }}" class="inline">{{ csrf() }}<button class="btn secondary" type="submit">{{ icon('database', 16) }} Create backup now</button></form>
+  <form method="post" action="{{ url_for('admin.backup_complete') }}" class="inline" data-confirm="Make a complete backup now? With many files it can take a minute.">{{ csrf() }}<button class="btn" type="submit">{{ icon('archive', 16) }} Complete backup now</button></form>{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  <div class="kpi calm"><div class="k-label">{{ icon('database', 16) }}Kept on server</div><div class="k-value">{{ backups|length }}</div><div class="k-hint">Newest {{ keep }} are retained</div></div>
+  <div class="kpi {{ 'alert' if not backups else 'calm' }}"><div class="k-label">{{ icon('clock', 16) }}Latest backup</div><div class="k-value" style="font-size:1.3rem">{{ backups[0].created|timeago if backups else 'None yet' }}</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('folder', 16) }}Second copy folder</div><div class="k-value" style="font-size:1.3rem">{{ secondary|capitalize }}</div><div class="k-hint">{{ secondary_path or 'Set one in System settings' }}</div></div>
+</div>
+<section class="card mt"><div class="card-head"><h2>Complete backups: by department, by person, by date</h2><a class="btn ghost sm" href="{{ url_for('admin.backup_runs') }}">All runs</a></div><div class="card-body">
+  <p>A <b>complete backup</b> makes the full backup below <b>plus</b> one zip for every department and one for every person, filed by date. Automatic daily backup is <b>{{ 'on (about ' ~ auto_time ~ ')' if auto_on else 'off' }}</b> while HIMS is running; change it in System settings.</p>
+  {% if runs %}<ul class="list">{% for r in runs %}<li><span><a class="t" href="{{ url_for('admin.backup_run', day=r.date, run_time=r.time) }}">{{ r.date }} at {{ r.label }}</a><span class="sub">{{ r.manifest.get('trigger', '') }} · {{ r.manifest.get('departments', [])|length }} departments · {{ r.manifest.get('users', [])|length }} people{% if r.manifest.get('errors') %} · <span class="overdue">{{ r.manifest.errors|length }} problem(s)</span>{% endif %}</span></span><small>{{ r.size|filesize }}</small></li>{% endfor %}</ul>
+  {% else %}<p class="muted">No complete backup has run yet. Press <b>Complete backup now</b>.</p>{% endif %}
+  <p><a href="{{ url_for('admin.backup_export') }}">Export one department, person or date range</a> · <a href="{{ url_for('admin.storage_map') }}">Where is everything stored?</a></p>
+</div></section>
+{% if backups %}
+<h2 style="margin:22px 0 8px">Full backups (restore from these)</h2>
+<div class="table-wrap"><table class="data"><thead><tr><th>Backup</th><th>Created</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for b in backups %}<tr><td>{{ b.name }}</td><td>{{ b.created|dtfmt }}</td><td class="num">{{ b.size|filesize }}</td><td class="right"><a class="btn ghost sm" href="{{ url_for('admin.backup_download', name=b.name) }}">{{ icon('download', 14) }} Download</a></td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card mt">{% call empty('No backups yet', 'Create the first backup now, then schedule a daily one (see the README).', 'database') %}{% endcall %}</div>{% endif %}
+
+<section class="card mt"><div class="card-head"><h2>Keep your data safe</h2></div><div class="card-body">
+  <ol>
+    <li>Schedule <code>backup_now.bat</code> daily with Windows Task Scheduler (steps are in the README).</li>
+    <li>Copy backups off the server: set a second copy folder in System settings, pointing at an external drive or a synced cloud folder.</li>
+    <li>Test a restore regularly. With HIMS stopped, run <code>flask --app run verify-backup &lt;file&gt;</code> to check a backup, or <code>flask --app run restore &lt;file&gt;</code> to restore it.</li>
+  </ol>
+  {% if not is_sqlite %}<p class="muted">You are using PostgreSQL. Backups here call <code>pg_dump</code>, so the PostgreSQL client tools must be installed on the server.</p>{% endif %}
+</div></section>
+{% endblock %}

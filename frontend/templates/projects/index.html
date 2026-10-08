@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty with context %}
+{% block title %}Projects{% endblock %}
+{% block heading %}Projects{% endblock %}
+{% block subheading %}Group related tasks under one owner, one deadline and one progress bar.{% endblock %}
+{% block actions %}{% if can_create %}<a class="btn" href="{{ url_for('projects.new') }}">{{ icon('plus', 16) }} New project</a>{% endif %}{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="open"{% if status == 'open' %} selected{% endif %}>Open</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>{% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Apply</button>
+</form>
+{% if pager.items %}
+<div class="grid cols-3">
+  {% for p in pager.items %}
+  <a class="dept-card" href="{{ url_for('projects.detail', pid=p.id) }}" style="text-decoration:none;color:inherit">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px">
+      <h2 style="font-size:1.05rem">{{ p.name }}</h2>{{ badge(p.status) }}
+    </div>
+    <p class="muted" style="margin:0">{{ p.department.name if p.department else 'Cross-department' }} · Manager: {{ p.manager.name }}</p>
+    {% if p.progress is not none %}
+      <div class="segbar" role="img" aria-label="{{ p.progress }}% complete"><i class="s-completed" style="width:{{ p.progress }}%"></i></div>
+      <small class="muted">{{ p.progress }}% of {{ p.tasks|length }} task{{ 's' if p.tasks|length != 1 }} complete</small>
+    {% else %}<small class="muted">No tasks yet</small>{% endif %}
+    <div class="stats"><span><b>{{ p.members|length }}</b>Members</span><span><b class="{{ 'overdue' if p.is_overdue }}">{{ p.end_date|datefmt if p.end_date else '—' }}</b>Deadline</span></div>
+  </a>
+  {% endfor %}
+</div>
+{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No projects yet', 'Create one to group tasks toward a shared deadline.', 'layers') %}{% endcall %}</div>{% endif %}
+{% endblock %}

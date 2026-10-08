@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Employee document types{% endblock %}
+{% block heading %}Employee document types{% endblock %}
+{% block subheading %}These appear on every employee's Documents tab. Uploading is optional unless you mark a document Required.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.index') }}">Back to administration</a><a class="btn" href="{{ url_for('admin.document_type_new') }}">{{ icon('plus', 16) }} New document type</a>{% endblock %}
+{% block content %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Document</th><th>Category</th><th>Required?</th><th>Expiry?</th><th>Verification?</th><th>Status</th><th></th></tr></thead><tbody>
+{% for t in types %}
+  <tr><td>{{ t.name }}</td><td>{{ t.category }}</td>
+    <td>{% if t.required %}<span class="badge tone-bad">Required</span>{% else %}<span class="badge tone-neutral">Optional</span>{% endif %}</td>
+    <td>{{ 'Yes' if t.expiry_required else 'No' }}</td><td>{{ 'Yes' if t.verification_required else 'No' }}</td>
+    <td>{% if t.active %}<span class="badge tone-good">Active</span>{% else %}<span class="badge tone-neutral">Hidden</span>{% endif %}</td>
+    <td class="nowrap"><a class="btn ghost sm" href="{{ url_for('admin.document_type_edit', tid=t.id) }}">Edit</a>
+      <form method="post" action="{{ url_for('admin.document_type_toggle', tid=t.id) }}" class="inline">{{ csrf() }}<button class="btn secondary sm" type="submit">{{ 'Hide' if t.active else 'Unhide' }}</button></form></td></tr>
+{% endfor %}
+</tbody></table></div>
+{% endblock %}

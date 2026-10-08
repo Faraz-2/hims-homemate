@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Documents{% endblock %}
+{% block heading %}Documents{% endblock %}
+{% block subheading %}Policies, templates, contracts and reports stored on the HIMS server.{% endblock %}
+{% block actions %}{% if can_upload %}<a class="btn" href="{{ url_for('documents.upload') }}">{{ icon('upload', 16) }} Upload document</a>{% endif %}{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Title or file name"></div>
+  <div class="f"><label for="category">Category</label><select id="category" name="category" data-autosubmit><option value="">All</option>{% for c in categories %}<option{% if category == c %} selected{% endif %}>{{ c }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Search</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Document</th><th>Category</th><th>Who can see it</th><th>Uploaded</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for d in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('documents.download', did=d.id) }}">{{ d.title }}</a><small>{{ d.original_name }}{% if d.description %} · {{ d.description }}{% endif %}</small></td>
+    <td>{{ d.category or '—' }}</td><td>{{ d.department.name if d.department else 'Whole company' }}</td>
+    <td>{{ d.uploaded_by.name }}<small>{{ d.created_at|datefmt }}</small></td><td class="num">{{ d.size|filesize }}</td>
+    <td class="nowrap"><a class="btn ghost sm" href="{{ url_for('documents.download', did=d.id) }}">{{ icon('download', 14) }} Download</a>
+      {% if can_delete(d) %}<form method="post" action="{{ url_for('documents.delete', did=d.id) }}" class="inline" data-confirm="Delete this document?">{{ csrf() }}<button class="btn danger sm" type="submit">Delete</button></form>{% endif %}</td></tr>
+{% endfor %}</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No documents yet', 'Upload a policy, template or report to share it.', 'folder') %}{% endcall %}</div>{% endif %}
+{% endblock %}

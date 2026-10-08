@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Home Mate">
+  <rect width="48" height="48" rx="10" fill="#F47B20"/>
+  <path d="M8 23.5 24 9l16 14.5" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M13 22v15h22V22" fill="none" stroke="#000" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="21" y="27" width="6" height="10" fill="#000"/>
+</svg>

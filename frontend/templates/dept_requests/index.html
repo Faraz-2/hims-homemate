@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty, kpi with context %}
+{% block title %}Department requests{% endblock %}
+{% block heading %}Department requests{% endblock %}
+{% block subheading %}Formal work requests between departments, with an owner, a deadline and an approval at the end.{% endblock %}
+{% block actions %}<a class="btn" href="{{ url_for('dept_requests.new') }}">{{ icon('plus', 16) }} New request</a>{% endblock %}
+{% block content %}
+<div class="grid cols-4">
+  {{ kpi('Incoming, open', counts.incoming, 'arrow-right', url_for('dept_requests.index', box='inbox') if has_dept else None, 'For my department') }}
+  {{ kpi('Not picked up', counts.unassigned, 'clock', None, 'Incoming with no owner yet', 'alert' if counts.unassigned else 'calm') }}
+  {{ kpi('I sent, open', counts.sent, 'user-check', url_for('dept_requests.index', box='sent'), '', 'calm') }}
+  {{ kpi('Waiting for my approval', counts.review, 'check', url_for('dept_requests.index', box='sent', status='in_review'), 'Work is done, please review', 'alert' if counts.review else 'calm') }}
+</div>
+<div class="tabs mt">
+  {% for key, name in ([('inbox', 'Incoming')] if has_dept else []) + [('sent', 'Sent by me'), ('assigned', 'Assigned to me'), ('all', 'Everything I can see')] %}
+    <a class="{{ 'on' if box == key }}" href="{{ url_for('dept_requests.index', box=key, status=status) }}">{{ name }}</a>
+  {% endfor %}
+</div>
+<form class="filters" method="get"><input type="hidden" name="box" value="{{ box }}">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="open"{% if status == 'open' %} selected{% endif %}>Open</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>{% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="dept">Sent to</label><select id="dept" name="dept" data-autosubmit><option value="">Any department</option>{% for d in departments %}<option value="{{ d.id }}"{% if dept == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Apply</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Request</th><th>From</th><th>To</th><th>Owner</th><th>Needed by</th><th>Priority</th><th>Status</th></tr></thead><tbody>
+{% for r in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('dept_requests.detail', rid=r.id) }}">{{ r.title }}</a><small>{{ r.number }} · {{ r.category or 'General' }}</small></td>
+    <td>{{ r.from_department.name if r.from_department else '—' }}<small>{{ r.requester.name }}</small></td>
+    <td>{{ r.to_department.name }}</td><td>{{ r.assignee.name if r.assignee else '—' }}</td>
+    <td class="nowrap">{{ r.due_date|datefmt }}{% if r.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td>
+    <td>{{ badge(r.priority) }}</td><td>{{ badge(r.status) }}</td></tr>
+{% endfor %}</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No requests here', 'Send a request to another department and it will show up in this list.', 'arrow-right') %}{% endcall %}</div>{% endif %}
+{% endblock %}

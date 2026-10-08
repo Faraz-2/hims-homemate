@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Rights: {{ person.name }}{% endblock %}
+{% block heading %}Individual rights: {{ person.name }}{% endblock %}
+{% block subheading %}{{ person.role.name }}{% if person.department %} in {{ person.department.name }}{% endif %}. Start from their role and add or remove single rights only when this one person needs something different.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.profile', uid=person.id) }}">Back to profile</a>{% endblock %}
+{% block content %}
+<div class="notice"><div><b>How this works.</b> <span class="muted">"Role gives" is what {{ person.role.name }} normally allows. "Always allow" or "Always deny" overrides that for {{ person.name.split()[0] }} only. You can only allow rights that you hold yourself. Every change is recorded in the activity log.</span></div></div>
+<form method="post" class="mt">{{ csrf() }}
+<div class="table-wrap"><table class="data matrix">
+  <thead><tr><th>Right</th><th class="role">Role gives</th><th class="role">For {{ person.name.split()[0] }}</th><th class="role">Result</th></tr></thead>
+  <tbody>
+  {% for module, rows in modules.items() %}
+    <tr class="module"><td colspan="4">{{ module }}</td></tr>
+    {% for r in rows %}
+    <tr{% if r.state != 'default' %} style="font-weight:600"{% endif %}>
+      <td>{{ r.perm.label }}<small>{{ r.perm.code }}</small></td>
+      <td class="cell">{% if r.from_role %}{{ icon('check', 18) }}{% else %}<span class="muted">&mdash;</span>{% endif %}</td>
+      <td class="cell">
+        {% if r.state == 'allow' and not r.can_grant %}
+          <input type="hidden" name="p_{{ r.perm.id }}" value="allow"><span class="badge tone-good">Always allow</span> <small>(set by someone with wider rights)</small>
+        {% else %}
+          <label class="sr-only" for="p_{{ r.perm.id }}">{{ r.perm.label }}</label>
+          <select id="p_{{ r.perm.id }}" name="p_{{ r.perm.id }}" style="width:auto;padding:6px 8px">
+            <option value="">Follow role</option>
+            <option value="allow"{% if r.state == 'allow' %} selected{% endif %}{% if not r.can_grant %} disabled{% endif %}>Always allow{% if not r.can_grant %} (you don't hold this){% endif %}</option>
+            <option value="deny"{% if r.state == 'deny' %} selected{% endif %}>Always deny</option>
+          </select>
+        {% endif %}
+      </td>
+      <td class="cell">{% if r.effective %}<span class="badge tone-good">Can</span>{% else %}<span class="badge tone-neutral">Cannot</span>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<div class="form-actions"><button class="btn" type="submit">Save rights</button><a class="btn ghost" href="{{ url_for('employees.profile', uid=person.id) }}">Cancel</a></div>
+</form>
+{% endblock %}

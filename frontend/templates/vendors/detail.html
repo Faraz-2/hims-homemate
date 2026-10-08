@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import comments_block, csrf with context %}
+{% block title %}{{ vendor.name }}{% endblock %}
+{% block heading %}{{ vendor.name }}{% endblock %}
+{% block subheading %}{{ vendor.category or 'Vendor' }} · {{ badge(vendor.status) }}{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('vendors.index') }}">Back to vendors</a><a class="btn" href="{{ url_for('vendor_products.index', vid=vendor.id) }}">{{ icon('list', 16) }} Products and prices</a>{% if can_manage %}<a class="btn secondary" href="{{ url_for('vendors.edit', vid=vendor.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+  {% if can_delete %}<form method="post" action="{{ url_for('vendor_products.vendor_delete', vid=vendor.id) }}" class="inline" data-confirm="Delete {{ vendor.name }} and its whole product list? This cannot be undone.">{{ csrf() }}<button class="btn danger" type="submit">{{ icon('trash', 16) }} Delete vendor</button></form>{% endif %}{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body"><dl class="facts">
+      <div><dt>Contact person</dt><dd>{{ vendor.contact_person or '—' }}</dd></div><div><dt>Phone</dt><dd>{{ vendor.phone or '—' }}</dd></div><div><dt>Email</dt><dd>{{ vendor.email or '—' }}</dd></div>
+      <div><dt>Payment terms</dt><dd>{{ vendor.payment_terms or '—' }}</dd></div><div><dt>Rating</dt><dd>{{ ('★' * vendor.rating) ~ ('☆' * (5 - vendor.rating)) if vendor.rating else 'Not rated' }}</dd></div>
+      <div><dt>Approved spend</dt><dd><b>{{ total|money }}</b></dd></div><div style="grid-column:1/-1"><dt>Address</dt><dd>{{ vendor.address or '—' }}</dd></div>
+    </dl>{% if vendor.notes %}<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><div class="prose">{{ vendor.notes }}</div>{% endif %}</div></section>
+    <section class="card" id="products"><div class="card-head"><h2>Products and prices</h2><small>{{ product_count }} item{{ '' if product_count == 1 else 's' }} · {{ products_available }} available</small></div><div class="card-body">
+      {% if products %}<ul class="list scroll-list">{% for p in products %}<li><span><b>{{ p.name }}</b><span class="sub">{{ p.section or 'No section' }} · per {{ p.unit or 'each' }}{% if not p.available %} · unavailable{% endif %}</span></span><b>{{ p.price|money }}</b></li>{% endfor %}</ul>
+      {% else %}<p class="muted">No products or menu items yet.</p>{% endif %}
+      <div style="margin-top:12px"><a class="btn secondary sm" href="{{ url_for('vendor_products.index', vid=vendor.id) }}">{{ 'Open full list' if product_count else 'Start the list' }}</a>
+      {% if can_products %}<a class="btn sm" href="{{ url_for('vendor_products.new', vid=vendor.id) }}">{{ icon('plus', 14) }} Add item</a>{% endif %}</div>
+    </div></section>
+    <section class="card" id="files"><div class="card-head"><h2>Documents and files</h2><small>Contracts, price lists, anything</small></div><div class="card-body">
+      {% if files %}<ul class="list scroll-list">{% for f in files %}<li><span><a class="t" href="{{ url_for('files.download', fid=f.id) }}">{{ f.title }}</a><span class="sub">{{ f.folder }} · {{ f.size|filesize }} · {{ f.owner.name }} · {{ f.created_at|datefmt }}</span></span>
+        {% if can_manage %}<form method="post" action="{{ url_for('files.delete', fid=f.id) }}" class="inline" data-confirm="Delete this file?">{{ csrf() }}<input type="hidden" name="next" value="{{ url_for('vendors.detail', vid=vendor.id) }}#files"><button class="btn danger sm" type="submit">{{ icon('x', 12) }}</button></form>{% endif %}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">No files attached to this vendor.</p>{% endif %}
+      {% if can_manage %}<form method="post" action="{{ url_for('files.attach_vendor', vid=vendor.id) }}" enctype="multipart/form-data" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">{{ csrf() }}
+        <input type="file" name="files" multiple required><input type="text" name="folder" placeholder="Folder (e.g. Contracts)" style="max-width:190px"><button class="btn sm" type="submit">{{ icon('upload', 14) }} Attach</button></form>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-head"><h2>Notes and history</h2></div><div class="card-body">{{ comments_block(comments, url_for('vendors.comment', vid=vendor.id), placeholder='Add a note about this vendor') }}</div></section>
+  </div>
+  <aside class="stack"><section class="card"><div class="card-head"><h2>Recent expenses</h2></div><div class="card-body"><ul class="list">
+    {% for e in expenses %}<li><span><a class="t" href="{{ url_for('finance.detail', eid=e.id) }}">{{ e.title }}</a><span class="sub">{{ e.expense_date|datefmt }} · {{ e.amount|money }}</span></span>{{ badge(e.status) }}</li>
+    {% else %}<li class="muted">No expenses linked to this vendor.</li>{% endfor %}</ul></div></section></aside>
+</div>
+{% endblock %}

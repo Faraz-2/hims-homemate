@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, empty with context %}
+{% block title %}Complete backups{% endblock %}
+{% block heading %}Complete backups, by date{% endblock %}
+{% block subheading %}Each run holds the full backup plus a zip per department and per person. Open a run to download them.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.backups') }}">Back to backups</a><a class="btn secondary" href="{{ url_for('admin.backup_export') }}">Export one department / person</a>
+  <form method="post" action="{{ url_for('admin.backup_complete') }}" class="inline" data-confirm="Make a complete backup now?">{{ csrf() }}<button class="btn" type="submit">{{ icon('archive', 16) }} Complete backup now</button></form>{% endblock %}
+{% block content %}
+{% if runs %}
+{% set ns = namespace(day='') %}
+{% for r in runs %}
+  {% if r.date != ns.day %}{% if ns.day %}</ul></div></section>{% endif %}{% set ns.day = r.date %}
+  <section class="card mt"><div class="card-head"><h2>{{ r.date }}</h2></div><div class="card-body"><ul class="list">{% endif %}
+  <li><span><a class="t" href="{{ url_for('admin.backup_run', day=r.date, run_time=r.time) }}">{{ r.label }} · {{ r.manifest.get('trigger', 'backup') }}</a>
+    <span class="sub">{{ r.manifest.get('departments', [])|length }} departments · {{ r.manifest.get('users', [])|length }} people · full backup {{ r.manifest.get('full_backup') or 'not made' }}{% if r.manifest.get('errors') %} · <span class="overdue">{{ r.manifest.errors|length }} problem(s)</span>{% endif %}</span></span><small>{{ r.size|filesize }}</small></li>
+{% endfor %}</ul></div></section>
+{% else %}<div class="card">{% call empty('No complete backups yet', 'Press "Complete backup now". After that HIMS makes one every day by itself.', 'archive') %}{% endcall %}</div>{% endif %}
+{% endblock %}

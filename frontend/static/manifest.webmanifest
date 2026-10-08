@@ -1,0 +1,14 @@
+{
+  "name": "Home Mate HIMS",
+  "short_name": "HIMS",
+  "description": "Home Mate Integrated Management System",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#F47B20",
+  "icons": [
+    {"src": "img/logo-128.png", "sizes": "128x128", "type": "image/png"},
+    {"src": "img/logo.png", "sizes": "256x256", "type": "image/png", "purpose": "any"}
+  ]
+}

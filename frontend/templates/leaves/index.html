@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Leave{% endblock %}
+{% block heading %}Leave{% endblock %}
+{% block subheading %}Request time off and see what you have left this year.{% endblock %}
+{% block actions %}<a class="btn" href="{{ url_for('leaves.new') }}">{{ icon('plus', 16) }} Request leave</a>{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  {% for b in balances %}
+    <div class="kpi calm"><div class="k-label">{{ icon('calendar', 16) }}{{ b.name }}</div>
+      <div class="k-value">{{ '%g'|format(b.left) }} <small style="font-size:1rem">of {{ b.allowed }} days left</small></div>
+      <div class="k-hint">{{ '%g'|format(b.used) }} used or pending this year</div></div>
+  {% endfor %}
+</div>
+<div class="tabs mt">
+  <a class="{{ 'on' if tab == 'mine' }}" href="{{ url_for('leaves.index') }}">My requests</a>
+  {% if approver %}<a class="{{ 'on' if tab == 'approvals' }}" href="{{ url_for('leaves.index', tab='approvals') }}">To decide{% if pending_count %}<span class="count">{{ pending_count }}</span>{% endif %}</a>{% endif %}
+</div>
+{% if tab == 'approvals' %}
+<form class="filters" method="get"><input type="hidden" name="tab" value="approvals">
+  <div class="f"><label for="status">Show</label><select id="status" name="status" data-autosubmit>
+    {% for k, n in [('pending','Pending'),('approved','Approved'),('rejected','Rejected'),('all','All')] %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div></form>
+{% endif %}
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr>{% if tab == 'approvals' %}<th>Employee</th>{% endif %}<th>Type</th><th>Dates</th><th class="num">Days</th><th>Reason</th><th>Status</th><th></th></tr></thead><tbody>
+{% for l in pager.items %}
+  <tr>{% if tab == 'approvals' %}<td>{{ l.user.name }}<small>{{ l.user.department.name if l.user.department else '' }}</small></td>{% endif %}
+    <td>{{ label(l.leave_type) }}</td><td class="nowrap">{{ l.start_date|datefmt('%d %b') }} to {{ l.end_date|datefmt('%d %b %Y') }}</td><td class="num">{{ '%g'|format(l.days) }}</td>
+    <td>{{ l.reason or '—' }}{% if l.decision_note %}<small>Decision note: {{ l.decision_note }}</small>{% endif %}</td>
+    <td>{{ badge(l.status) }}{% if l.decided_by %}<small>by {{ l.decided_by.name }}</small>{% endif %}</td>
+    <td>
+      {% if tab == 'approvals' and can_decide(l) %}
+        <form method="post" action="{{ url_for('leaves.decide', lid=l.id) }}" style="display:grid;gap:6px;min-width:190px">{{ csrf() }}
+          <input type="text" name="note" placeholder="Note (optional)" aria-label="Decision note">
+          <div class="actions"><button class="btn good sm" name="decision" value="approved" type="submit">Approve</button><button class="btn danger sm" name="decision" value="rejected" type="submit">Reject</button></div></form>
+      {% elif tab == 'mine' and l.status == 'pending' %}
+        <form method="post" action="{{ url_for('leaves.cancel', lid=l.id) }}" data-confirm="Cancel this request?" class="inline">{{ csrf() }}<button class="btn ghost sm" type="submit">Cancel</button></form>
+      {% endif %}
+    </td></tr>
+{% endfor %}
+</tbody></table></div>
+{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No leave requests here', 'Requests you send will show up in this list.', 'calendar') %}{% endcall %}</div>{% endif %}
+{% endblock %}

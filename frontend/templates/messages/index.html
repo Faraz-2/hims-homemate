@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}{{ active_title or 'Messages' }}{% endblock %}
+{% block heading %}Messages{% endblock %}
+{% block subheading %}Chat with a colleague or your whole team. Files you share stay on the HIMS server.{% endblock %}
+{% block content %}
+<div class="chat{% if active %} has-active{% endif %}">
+  <aside class="chat-list" aria-label="Conversations">
+    <form method="post" action="{{ url_for('messages.direct') }}" class="chat-new">{{ csrf() }}
+      <label for="user_id" class="sr-only">Start a chat with</label>
+      <select id="user_id" name="user_id" required>
+        <option value="">Start a chat with…</option>
+        {% for p in people %}<option value="{{ p.id }}">{{ p.name }}{% if p.department %} ({{ p.department.name }}){% endif %}</option>{% endfor %}
+      </select>
+      <button class="btn sm" type="submit">Start</button>
+    </form>
+
+    {% if team %}<div class="nav-title-l">Team chat</div>
+    {% for r in team %}
+      <a class="chat-item{% if active and active.id == r.conv.id %} on{% endif %}" href="{{ url_for('messages.thread', cid=r.conv.id) }}">
+        <span class="avatar sm">{{ icon('users', 14) }}</span>
+        <span class="ci-text"><b>{{ r.title }}</b><small>{{ r.preview or 'No messages yet' }}</small></span>
+        {% if r.unread %}<span class="ci-badge">{{ r.unread }}</span>{% endif %}
+      </a>
+    {% endfor %}{% endif %}
+
+    <div class="nav-title-l">Direct messages</div>
+    {% for r in direct %}
+      <a class="chat-item{% if active and active.id == r.conv.id %} on{% endif %}" href="{{ url_for('messages.thread', cid=r.conv.id) }}">
+        <span class="avatar sm">{{ r.title[:1] }}</span>
+        <span class="ci-text"><b>{{ r.title }}</b><small>{{ r.preview or 'No messages yet' }}</small></span>
+        {% if r.unread %}<span class="ci-badge">{{ r.unread }}</span>{% endif %}
+      </a>
+    {% else %}<p class="muted" style="padding:6px 10px">No direct messages yet. Pick a person above to start.</p>{% endfor %}
+  </aside>
+
+  <section class="chat-thread" aria-label="Conversation">
+    {% if active %}
+      <header class="chat-head"><a class="chat-back" href="{{ url_for('messages.index') }}">&#8249; All chats</a><b>{{ active_title }}</b>{% if active.kind == 'department' %}<small>Everyone in this department can read this chat.</small>{% else %}<small>Private between the two of you.</small>{% endif %}</header>
+      <div class="chat-log" data-chat data-poll="{{ url_for('messages.poll', cid=active.id) }}" data-last="{{ last_id }}" data-first="{{ first_id }}" data-older="{{ url_for('messages.older', cid=active.id) }}" role="log" aria-live="polite" tabindex="0" aria-label="Messages, scrollable">
+        {% if has_older %}<button type="button" class="btn ghost sm chat-older" data-older-btn>Load earlier messages</button>{% endif %}
+        {% for m in msgs %}
+        <div class="msg{% if m.sender_id == current_user.id %} mine{% endif %}" data-id="{{ m.id }}">
+          <span class="avatar sm">{{ m.sender.initials }}</span>
+          <div class="bubble">
+            <div class="who"><b>{{ m.sender.name }}</b><small>{{ m.created_at|dtfmt }}</small></div>
+            <div class="prose">{{ m.body }}</div>
+            {% if m.attachment_file %}<a class="attach" href="{{ url_for('messages.file', mid=m.id) }}">{{ icon('download', 14) }} {{ m.attachment_name }}</a>{% endif %}
+          </div>
+        </div>
+        {% else %}<p class="muted chat-empty">No messages yet. Say hello.</p>{% endfor %}
+      </div>
+      <form class="chat-send" method="post" action="{{ url_for('messages.send', cid=active.id) }}" enctype="multipart/form-data">
+        {{ csrf() }}
+        <label class="sr-only" for="chat-body">Message</label>
+        <textarea id="chat-body" name="body" rows="2" maxlength="{{ max_len }}" placeholder="Write a message"></textarea>
+        <div class="chat-actions">
+          <label class="btn ghost sm" for="chat-file">{{ icon('upload', 14) }} Attach<input id="chat-file" class="sr-only" type="file" name="attachment"></label>
+          <span class="file-name help"></span>
+          <button class="btn" type="submit">Send</button>
+        </div>
+      </form>
+    {% else %}
+      <div class="empty" style="margin:auto">{{ icon('message', 34) }}<h3>Pick a conversation</h3><p>Choose a chat on the left, or start a new one with a colleague.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

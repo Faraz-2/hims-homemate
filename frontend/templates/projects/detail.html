@@ -1,0 +1,49 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block, empty with context %}
+{% block title %}{{ project.name }}{% endblock %}
+{% block heading %}{{ project.name }}{% endblock %}
+{% block subheading %}{{ project.department.name if project.department else 'Cross-department' }} · {{ badge(project.status) }}{% if project.is_overdue %} <span class="badge tone-bad">Overdue</span>{% endif %}{% endblock %}
+{% block actions %}
+  <a class="btn ghost" href="{{ url_for('projects.index') }}">Back to projects</a>
+  {% if can_manage %}<a class="btn secondary" href="{{ url_for('projects.edit', pid=project.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+  {% if has_perm(current_user, 'tasks.create') %}<a class="btn" href="{{ url_for('tasks.new') }}">{{ icon('plus', 16) }} New task</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="grid cols-4">
+  <div class="kpi calm"><div class="k-label">{{ icon('users', 16) }}Manager</div><div class="k-value" style="font-size:1.2rem">{{ project.manager.name }}</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('calendar', 16) }}Timeline</div><div class="k-value" style="font-size:1.05rem">{{ project.start_date|datefmt('%d %b') if project.start_date else '—' }} to {{ project.end_date|datefmt('%d %b %Y') if project.end_date else '—' }}</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('check-square', 16) }}Tasks</div><div class="k-value">{{ open_tasks|length }} open</div><div class="k-hint">{{ done_tasks|length }} completed</div></div>
+  <div class="kpi {{ 'alert' if project.is_overdue else 'calm' }}"><div class="k-label">{{ icon('activity', 16) }}Progress</div><div class="k-value">{{ (project.progress ~ '%') if project.progress is not none else '—' }}</div></div>
+</div>
+
+<div class="split mt">
+  <div class="stack">
+    {% if project.description %}<section class="card accent"><div class="card-body prose">{{ project.description }}</div></section>{% endif %}
+    <section class="card"><div class="card-head"><h2>Open tasks</h2></div><div class="card-body">
+      {% if open_tasks %}<div class="table-wrap"><table class="data"><thead><tr><th>Task</th><th>Assigned to</th><th>Due</th><th>Status</th></tr></thead><tbody>
+      {% for t in open_tasks %}<tr><td><a class="title" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a></td><td>{{ t.assignee.name if t.assignee else '—' }}</td>
+        <td>{{ t.due_date|datefmt }}{% if t.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td><td>{{ badge(t.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>{% else %}{% call empty('No open tasks', 'Create a task and set this project when assigning it.', 'check-square') %}{% endcall %}{% endif %}
+    </div></section>
+    {% if done_tasks %}<section class="card"><div class="card-head"><h2>Completed</h2></div><div class="card-body"><ul class="list">
+      {% for t in done_tasks %}<li><a class="t" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a><small>{{ t.completed_at|datefmt }}</small></li>{% endfor %}
+    </ul></div></section>{% endif %}
+    <section class="card"><div class="card-head"><h2>Discussion</h2></div><div class="card-body">{{ comments_block(comments, url_for('projects.comment', pid=project.id)) }}</div></section>
+  </div>
+  <aside class="stack">
+    <section class="card"><div class="card-head"><h2>Members</h2></div><div class="card-body">
+      <ul class="list">{% for u in project.members %}<li><span style="display:flex;gap:10px;align-items:center"><span class="avatar sm">{{ u.initials }}</span><a class="t" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.name }}</a></span>
+        {% if can_manage and u.id != project.manager_id %}<form method="post" action="{{ url_for('projects.remove_member', pid=project.id, uid=u.id) }}" class="inline" data-confirm="Remove {{ u.name }} from the project?">{{ csrf() }}<button class="btn ghost sm" type="submit">Remove</button></form>{% endif %}
+      </li>{% endfor %}</ul>
+      {% if can_manage and candidates %}<form method="post" action="{{ url_for('projects.add_member', pid=project.id) }}" class="step-form mt">{{ csrf() }}
+        <select name="user_id" aria-label="Add a member" required>
+          <option value="">Add a member…</option>
+          {% for u in candidates %}<option value="{{ u.id }}">{{ u.name }}{% if u.department %} ({{ u.department.name }}){% endif %}</option>{% endfor %}
+        </select>
+        <button class="btn secondary sm" type="submit">Add</button>
+      </form>{% endif %}
+    </div></section>
+    {% if project.budget %}<section class="card"><div class="card-head"><h2>Budget</h2></div><div class="card-body"><b style="font-size:1.4rem">{{ project.budget|money }}</b></div></section>{% endif %}
+  </aside>
+</div>
+{% endblock %}

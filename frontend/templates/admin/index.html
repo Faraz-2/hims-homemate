@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Administration{% endblock %}
+{% block heading %}Administration{% endblock %}
+{% block subheading %}Users, roles, settings, backups and system health.{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  {% if has_perm(current_user, 'employees.manage') %}<a class="tool-card" href="{{ url_for('employees.index') }}"><span class="ico">{{ icon('users', 20) }}</span><span><b>Users</b><small>Add employees, reset passwords, deactivate accounts.</small></span></a>{% endif %}
+  {% if can_roles %}<a class="tool-card" href="{{ url_for('admin.roles') }}"><span class="ico">{{ icon('shield', 20) }}</span><span><b>Roles and permissions</b><small>Create roles and edit what each can do.</small></span></a>{% endif %}
+  {% if has_perm(current_user, 'departments.manage') %}<a class="tool-card" href="{{ url_for('departments.index') }}"><span class="ico">{{ icon('building', 20) }}</span><span><b>Departments</b><small>Create and edit departments.</small></span></a>{% endif %}
+  {% if has_perm(current_user, 'employees.documents') %}<a class="tool-card" href="{{ url_for('admin.document_types') }}"><span class="ico">{{ icon('folder', 20) }}</span><span><b>Employee document types</b><small>CNIC, degree, contract and more — set what's required.</small></span></a>{% endif %}
+  {% if can_settings %}<a class="tool-card" href="{{ url_for('admin.settings') }}"><span class="ico">{{ icon('settings', 20) }}</span><span><b>System settings</b><small>Working hours, leave allowances, currency.</small></span></a>{% endif %}
+  {% if can_backup %}<a class="tool-card" href="{{ url_for('admin.backups') }}"><span class="ico">{{ icon('database', 20) }}</span><span><b>Backups</b><small>Create, download and check backups.</small></span></a>{% endif %}
+  {% if can_backup %}<a class="tool-card" href="{{ url_for('admin.backup_runs') }}"><span class="ico">{{ icon('archive', 20) }}</span><span><b>Department, user and date backups</b><small>Browse every complete backup run by date, department and person.</small></span></a>
+  <a class="tool-card" href="{{ url_for('admin.backup_export') }}"><span class="ico">{{ icon('download', 20) }}</span><span><b>Export a backup</b><small>One department, one person or a date range, on demand.</small></span></a>
+  <a class="tool-card" href="{{ url_for('admin.storage_map') }}"><span class="ico">{{ icon('server', 20) }}</span><span><b>Where data is stored</b><small>Folders for the database, files and backups, by department and person.</small></span></a>{% endif %}
+  {% if has_perm(current_user, 'employees.remove') or has_perm(current_user, 'employees.manage') %}<a class="tool-card" href="{{ url_for('people.removed') }}"><span class="ico">{{ icon('user-minus', 20) }}</span><span><b>Removed from the team</b><small>Who left, why, and who took over their work.</small></span></a>{% endif %}
+  {% if can_activity %}<a class="tool-card" href="{{ url_for('admin.activity') }}"><span class="ico">{{ icon('activity', 20) }}</span><span><b>Activity log</b><small>Who changed what, and when.</small></span></a>{% endif %}
+</div>
+
+<section class="card dark mt"><div class="card-head"><h2>System health</h2></div><div class="card-body">
+  <dl class="health">
+    <div><dt>Status</dt><dd><span class="pulse"></span>Running since {{ health.started|dtfmt }}</dd></div>
+    <div><dt>Team laptops open</dt><dd>{{ health.address }}</dd></div>
+    <div><dt>Database</dt><dd>{{ health.database }}{% if health.db_size %} · {{ health.db_size|filesize }}{% endif %}</dd></div>
+    <div><dt>Uploaded files</dt><dd>{{ health.uploads[0] }} file(s) · {{ health.uploads[1]|filesize }}</dd></div>
+    <div><dt>Last backup</dt><dd>{% if health.last_backup %}{{ health.last_backup.created|dtfmt }} ({{ health.last_backup.size|filesize }}){% else %}<span style="color:#ffb27a">No backup yet: create one now</span>{% endif %}</dd></div>
+    <div><dt>Backups kept</dt><dd>{{ health.backup_count }} · secondary copy: {{ health.secondary }}</dd></div>
+    <div><dt>People</dt><dd>{{ health.users_active }} active · {{ health.users_online }} online now</dd></div>
+    <div><dt>Time zone</dt><dd>{{ health.timezone }}</dd></div>
+    <div><dt>Software</dt><dd>HIMS {{ health.version }} · Python {{ health.python }}</dd></div>
+  </dl>
+</div></section>
+
+{% if locked or pending_pw %}
+<section class="card mt"><div class="card-head"><h2>Accounts needing attention</h2></div><div class="card-body">
+  {% if pending_pw %}<p class="muted">{{ pending_pw }} active account(s) still have a temporary password and must set their own at next sign-in.</p>{% endif %}
+  {% if locked %}<ul class="list">{% for u in locked %}<li><span>{{ u.name }}<span class="sub">Locked until {{ u.locked_until|dtfmt }} after too many failed sign-ins</span></span>
+    <form method="post" action="{{ url_for('admin.unlock', uid=u.id) }}" class="inline">{{ csrf() }}<button class="btn secondary sm" type="submit">Unlock</button></form></li>{% endfor %}</ul>{% endif %}
+</div></section>
+{% endif %}
+{% endblock %}

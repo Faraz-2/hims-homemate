@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block title %}Removed from the team{% endblock %}
+{% block heading %}Removed from the team{% endblock %}
+{% block subheading %}A permanent record of who left, why, and who took over their work.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.index') }}">Back to employees</a>{% endblock %}
+{% block content %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Person</th><th>Role</th><th>Department</th><th>Reason</th><th>Work went to</th><th>Removed</th></tr></thead><tbody>
+{% for r in rows %}<tr><td><a class="title" href="{{ url_for('employees.profile', uid=r.user_id) }}">{{ r.user.name }}</a><small>{{ r.user.employee_code or '' }}</small></td><td>{{ r.role_name or '—' }}</td><td>{{ r.department.name if r.department else '—' }}</td>
+  <td>{{ r.reason or '—' }}{% if r.note %}<small>{{ r.note }}</small>{% endif %}</td><td>{{ r.handover_to.name if r.handover_to else '—' }}<small>{{ r.items_moved }} item(s)</small></td><td>{{ r.created_at|dtfmt }}<small>by {{ r.removed_by.name if r.removed_by else '—' }}</small></td></tr>
+{% else %}<tr><td colspan="6" class="muted">Nobody has been removed yet.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

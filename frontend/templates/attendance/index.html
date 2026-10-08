@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, kpi, empty with context %}
+{% block title %}Attendance{% endblock %}
+{% block heading %}My attendance{% endblock %}
+{% block subheading %}Working hours are {{ work_start }} to {{ work_end }}. Check in when you arrive and check out when you leave.{% endblock %}
+{% block actions %}{% if has_perm(current_user, 'attendance.team') %}<a class="btn secondary" href="{{ url_for('attendance.team') }}">{{ icon('users', 16) }} Team attendance</a>{% endif %}{% endblock %}
+{% block content %}
+<section class="welcome">
+  <div>
+    <h2 style="color:var(--orange)">Today</h2>
+    <p>{% if not todays %}You haven't checked in yet.{% elif not todays.check_out %}Checked in at {{ todays.check_in|timefmt }}{% if todays.status == 'late' %}, marked late{% endif %}.{% else %}Checked in {{ todays.check_in|timefmt }}, out {{ todays.check_out|timefmt }}. Worked {{ todays.hours }} hours.{% endif %}</p>
+  </div>
+  <div class="checkin">
+    {% if not todays %}<form method="post" action="{{ url_for('attendance.check_in') }}" class="inline">{{ csrf() }}<button class="btn" type="submit">{{ icon('clock', 16) }} Check in</button></form>
+    {% elif not todays.check_out %}<form method="post" action="{{ url_for('attendance.check_out') }}" class="inline">{{ csrf() }}<button class="btn secondary" type="submit">{{ icon('log-out', 16) }} Check out</button></form>{% endif %}
+  </div>
+</section>
+<div class="grid cols-3 mt">
+  {{ kpi('Days present', stats.days, 'check', None, first.strftime('%B %Y')) }}
+  {{ kpi('Late arrivals', stats.late, 'alert', None, 'This month', 'alert' if stats.late > 2 else 'calm') }}
+  {{ kpi('Average hours', stats.avg_hours, 'clock', None, 'On days you checked out') }}
+</div>
+<div class="page-head mt" style="margin-bottom:12px"><h2>{{ first.strftime('%B %Y') }}</h2>
+  <div class="actions"><a class="btn ghost sm" href="{{ url_for('attendance.index', month=prev_month.strftime('%Y-%m')) }}">Previous month</a>
+  {% if next_month %}<a class="btn ghost sm" href="{{ url_for('attendance.index', month=next_month.strftime('%Y-%m')) }}">Next month</a>{% endif %}</div></div>
+{% if records %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Date</th><th>Check in</th><th>Check out</th><th class="num">Hours</th><th>Status</th></tr></thead><tbody>
+{% for r in records %}<tr><td>{{ r.work_date|datefmt('%a, %d %b') }}</td><td>{{ r.check_in|timefmt }}</td><td>{{ r.check_out|timefmt if r.check_out else '—' }}</td><td class="num">{{ r.hours if r.hours else '—' }}</td><td>{{ badge(r.status) }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<div class="card">{% call empty('No attendance recorded this month', 'Your check-ins will appear here.', 'clock') %}{% endcall %}</div>{% endif %}
+{% endblock %}

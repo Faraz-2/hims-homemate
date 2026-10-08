@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block with context %}
+{% block title %}{{ t.number }}{% endblock %}
+{% block heading %}{{ t.subject }}{% endblock %}
+{% block subheading %}{{ t.number }} · {{ badge(t.status) }} {{ badge(t.priority) }}{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('helpdesk.index', kind=url_kind) }}">Back to list</a>{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body">
+      <dl class="facts">
+        <div><dt>Raised by</dt><dd>{{ t.requester.name }}</dd></div>
+        {% if t.kind == 'csr' %}<div><dt>Customer</dt><dd>{{ t.customer_name or '—' }}</dd></div><div><dt>Customer contact</dt><dd>{{ t.customer_contact or '—' }}</dd></div>{% endif %}
+        {% if t.kind == 'query' %}<div><dt>Asked</dt><dd>{{ t.target_user.name if t.target_user else (t.target_department.name if t.target_department else '—') }}</dd></div>{% endif %}
+        <div><dt>Category</dt><dd>{{ t.category or '—' }}</dd></div>
+        <div><dt>Assigned to</dt><dd>{{ t.assignee.name if t.assignee else 'Nobody yet' }}</dd></div>
+        <div><dt>Opened</dt><dd>{{ t.created_at|dtfmt }}</dd></div>
+        {% if t.resolved_at %}<div><dt>Resolved</dt><dd>{{ t.resolved_at|dtfmt }}</dd></div>{% endif %}
+      </dl>
+      {% if t.description %}<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><div class="prose">{{ t.description }}</div>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-head"><h2>Conversation</h2></div><div class="card-body">
+      {{ comments_block(comments, url_for('helpdesk.reply', tid=t.id), allow_internal=staff, placeholder='Write a reply') }}
+    </div></section>
+  </div>
+  <aside class="stack">
+    {% if staff %}
+    <section class="card"><div class="card-head"><h2>Manage ticket</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for('helpdesk.update', tid=t.id) }}" class="step-form" style="gap:14px">{{ csrf() }}
+        <div class="field"><label for="status">Status</label><select id="status" name="status">{% for k, n in statuses %}<option value="{{ k }}"{% if k == t.status %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="priority">Priority</label><select id="priority" name="priority">{% for k, n in priorities %}<option value="{{ k }}"{% if k == t.priority %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+        <div class="field"><label for="assignee">Assign to</label><select id="assignee" name="assignee_id"><option value="">Keep as is</option>{% for u in pool %}<option value="{{ u.id }}"{% if u.id == t.assignee_id %} selected{% endif %}>{{ u.name }}</option>{% endfor %}</select></div>
+        <button class="btn" type="submit">Save changes</button>
+      </form>
+    </div></section>
+    {% elif is_requester %}
+    <section class="card"><div class="card-head"><h2>Your ticket</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for('helpdesk.update', tid=t.id) }}" class="step-form">{{ csrf() }}
+        {% if t.status in ('resolved', 'closed') %}<input type="hidden" name="status" value="open"><button class="btn secondary" type="submit">Reopen ticket</button>
+        {% else %}<input type="hidden" name="status" value="closed"><button class="btn secondary" type="submit" data-confirm="Close this ticket?">Close ticket</button>{% endif %}
+      </form>
+    </div></section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

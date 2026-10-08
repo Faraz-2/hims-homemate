@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import empty with context %}
+{% block title %}Search{% endblock %}
+{% block heading %}Search{% endblock %}
+{% block subheading %}{% if q %}{{ total }} result{{ 's' if total != 1 }} for “{{ q }}”. You only see records you have access to.{% else %}Find employees, tasks, tickets, vendors, leads and documents from one place.{% endif %}{% endblock %}
+{% block content %}
+<form class="filters" method="get" action="{{ url_for('search.index') }}"><div class="f" style="flex:1;max-width:520px"><label for="q">Search HIMS</label><input id="q" name="q" type="search" value="{{ q }}" autofocus></div><button class="btn" type="submit">Search</button></form>
+{% if q and q|length < 2 %}<div class="notice">Type at least two characters.</div>{% endif %}
+{% if groups %}
+<div class="grid cols-2">
+  {% for g in groups %}
+  <section class="card"><div class="card-head"><h2>{{ icon(g.icon, 18) }} {{ g.title }}</h2><small>{{ g.rows|length }}</small></div><div class="card-body"><ul class="list">
+    {% for r in g.rows %}<li><span><a class="t" href="{{ r.url }}">{{ r.title }}</a><span class="sub">{{ r.sub }}</span></span></li>{% endfor %}
+  </ul></div></section>
+  {% endfor %}
+</div>
+{% elif q and q|length >= 2 %}<div class="card">{% call empty('No matches', 'Check the spelling or try a shorter word.', 'search') %}{% endcall %}</div>{% endif %}
+{% endblock %}

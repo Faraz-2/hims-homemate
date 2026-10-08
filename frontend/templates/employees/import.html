@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Import employees{% endblock %}
+{% block heading %}Import employees{% endblock %}
+{% block subheading %}Add many people at once from an Excel or Google Sheets file saved as CSV.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.index') }}">Back to employees</a><a class="btn secondary" href="{{ url_for('employees.import_sample') }}">{{ icon('download', 16) }} Download sample file</a>{% endblock %}
+{% block content %}
+{% if results %}
+<section class="card accent"><div class="card-head"><h2>Result</h2></div><div class="card-body">
+  <p><b>{{ created }}</b> employee{{ 's' if created != 1 }} created{% if failed %}, <b class="overdue">{{ failed }}</b> row{{ 's' if failed != 1 }} skipped{% endif %}.</p>
+  {% if created %}<div class="notice important"><div><b>Copy these temporary passwords now.</b> <span class="muted">They are shown only on this page. Share each one privately; every person must choose their own password at first sign-in. To print or save this page, use your browser's Print (Ctrl+P).</span></div></div><br>{% endif %}
+  <div class="table-wrap"><table class="data"><thead><tr><th>Row</th><th>Name</th><th>Email</th><th>Result</th><th>Temporary password</th></tr></thead><tbody>
+  {% for r in results %}
+    <tr><td>{{ r.line }}</td><td>{{ r.name or '—' }}</td><td>{{ r.email or '—' }}</td>
+      <td>{% if r.ok %}<span class="badge tone-good">Created</span> <small>{{ r.message }}</small>{% else %}<span class="badge tone-bad">Skipped</span> <small class="overdue">{{ r.message }}</small>{% endif %}</td>
+      <td>{% if r.ok %}<code>{{ r.password }}</code>{% else %}—{% endif %}</td></tr>
+  {% endfor %}
+  </tbody></table></div>
+  {% if failed %}<p class="muted" style="margin-top:12px">Fix the skipped rows in your file and import just those again. Rows that were created are not duplicated because emails must be unique.</p>{% endif %}
+</div></section>
+{% endif %}
+
+<div class="grid cols-2{% if results %} mt{% endif %}">
+  <section class="card"><div class="card-head"><h2>1. Prepare your file</h2></div><div class="card-body">
+    <p>Make a sheet with these column headings in the first row, then save it as <b>CSV</b> (in Excel: File &gt; Save As &gt; CSV).</p>
+    <div class="table-wrap"><table class="data plain"><thead><tr><th>Column</th><th>Required?</th><th>Notes</th></tr></thead><tbody>
+      <tr><td><code>name</code></td><td>Yes</td><td>Full name</td></tr>
+      <tr><td><code>email</code></td><td>Yes</td><td>Work email; must be unique</td></tr>
+      <tr><td><code>department</code></td><td>No</td><td>Department name, for example Sales</td></tr>
+      <tr><td><code>role</code></td><td>No</td><td>Intern, Employee, Team Lead, Department Head… (default Employee)</td></tr>
+      <tr><td><code>job_title</code>, <code>phone</code></td><td>No</td><td></td></tr>
+      <tr><td><code>employment_type</code></td><td>No</td><td>Full-time, Part-time, Contract, Intern, On probation</td></tr>
+      <tr><td><code>reports_to_email</code></td><td>No</td><td>Email of their line manager (must already exist)</td></tr>
+    </tbody></table></div>
+    <p class="muted" style="margin-top:10px">Up to {{ max_rows }} people per file. Only roles below your own level can be assigned.</p>
+  </div></section>
+  <section class="card accent"><div class="card-head"><h2>2. Upload it</h2></div><div class="card-body">
+    <form method="post" enctype="multipart/form-data" class="step-form" style="gap:14px">{{ csrf() }}
+      <div class="field"><label for="file">CSV file</label><input id="file" type="file" name="file" accept=".csv,text/csv" required><span class="file-name help"></span></div>
+      <button class="btn" type="submit">{{ icon('upload', 16) }} Import employees</button>
+    </form>
+    <p class="muted" style="margin-top:12px">Each valid row creates an account with a temporary password. Rows with problems are skipped and explained, and nothing else is affected.</p>
+  </div></section>
+</div>
+{% endblock %}

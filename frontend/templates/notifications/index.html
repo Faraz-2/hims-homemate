@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Notifications{% endblock %}
+{% block heading %}Notifications{% endblock %}
+{% block subheading %}Assignments, approvals, revision requests, leave decisions and announcements.{% endblock %}
+{% block actions %}{% if unread_count %}<form method="post" action="{{ url_for('notifications.read_all') }}" class="inline">{{ csrf() }}<button class="btn secondary" type="submit">Mark all as read</button></form>{% endif %}{% endblock %}
+{% block content %}
+<div class="tabs"><a class="{{ 'on' if show != 'unread' }}" href="{{ url_for('notifications.index') }}">All</a><a class="{{ 'on' if show == 'unread' }}" href="{{ url_for('notifications.index', show='unread') }}">Unread{% if unread_count %}<span class="count">{{ unread_count }}</span>{% endif %}</a></div>
+{% if pager.items %}
+<section class="card"><div class="card-body scroll-box" tabindex="0" aria-label="Notifications list, scrollable"><ul class="list">
+  {% for n in pager.items %}
+  <li><span>{% if not n.is_read %}<span class="badge tone-warn">New</span> {% endif %}<a class="t" href="{{ url_for('notifications.open_one', nid=n.id) }}">{{ n.title }}</a>
+    {% if n.body %}<span class="sub">{{ n.body }}</span>{% endif %}</span><small class="nowrap">{{ n.created_at|dtfmt }}</small></li>
+  {% endfor %}
+</ul></div></section>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('You are all caught up', 'New notifications will show up here.', 'bell') %}{% endcall %}</div>{% endif %}
+{% endblock %}

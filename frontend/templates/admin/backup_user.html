@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Backups of {{ person.name }}{% endblock %}
+{% block heading %}Backups of {{ person.name }}{% endblock %}
+{% block subheading %}{{ person.employee_code or '' }} · every dated backup that holds this person's data and files.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.profile', uid=person.id) }}">Back to profile</a><a class="btn secondary" href="{{ url_for('admin.backup_export') }}">Export a date range</a>{% endblock %}
+{% block content %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Date</th><th>Time</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for r in rows %}<tr><td>{{ r.date }}</td><td>{{ r.label }}</td><td class="num">{{ r.size|filesize }}</td><td class="right"><a class="btn ghost sm" href="{{ url_for('admin.backup_run_file', day=r.date, run_time=r.time, kind='by-user', name=r.name) }}">{{ icon('download', 14) }} Download</a></td></tr>
+{% else %}<tr><td colspan="4" class="muted">No organised backup contains this person yet. Run a complete backup first.</td></tr>{% endfor %}</tbody></table></div>
+{% endblock %}

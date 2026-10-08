@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import empty with context %}
+{% block title %}Backup {{ run.date }} {{ run.label }}{% endblock %}
+{% block heading %}Backup of {{ run.date }} at {{ run.label }}{% endblock %}
+{% block subheading %}{{ m.get('trigger', '') }} · version {{ m.get('version', '') }} · {{ run.size|filesize }} in total{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.backup_runs') }}">All runs</a>{% endblock %}
+{% block content %}
+{% if m.get('errors') %}<div class="flash error"><span>{{ m.errors|length }} problem(s): {{ m.errors[:5]|join('; ') }}</span></div><br>{% endif %}
+<section class="card accent"><div class="card-head"><h2>Full backup (database + every file)</h2></div><div class="card-body">
+  {% if m.get('full_backup') %}<p>{{ m.full_backup }} · {{ m.get('full_size', 0)|filesize }} · <a href="{{ url_for('admin.backup_download', name=m.full_backup) }}">{{ icon('download', 14) }} Download</a> <span class="muted">(kept in Backups; older ones are pruned automatically)</span></p>
+  {% else %}<p class="muted">No full backup was made in this run.</p>{% endif %}</div></section>
+<section class="card mt"><div class="card-head"><h2>By department</h2><small>{{ m.get('departments', [])|length }}</small></div><div class="card-body"><div class="table-wrap scroll-box"><table class="data"><thead><tr><th>Department</th><th class="num">Records</th><th class="num">Files</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for d in m.get('departments', []) %}<tr><td>{{ d.name }}</td><td class="num">{{ d.rows }}</td><td class="num">{{ d.files }}</td><td class="num">{{ d.size|filesize }}</td><td class="right"><a class="btn ghost sm" href="{{ url_for('admin.backup_run_file', day=run.date, run_time=run.time, kind='by-department', name=d.slug ~ '.zip') }}">{{ icon('download', 14) }} Download</a></td></tr>{% endfor %}
+</tbody></table></div></div></section>
+<section class="card mt"><div class="card-head"><h2>By person</h2><small>{{ users|length }} shown</small></div><div class="card-body">
+  <form class="filters" method="get"><div class="f"><label for="q">Find a person</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Name, code or department"></div><button class="btn secondary" type="submit">Search</button></form>
+  <div class="table-wrap scroll-box"><table class="data"><thead><tr><th>Person</th><th>Department</th><th class="num">Records</th><th class="num">Files</th><th class="num">Size</th><th></th></tr></thead><tbody>
+  {% for u in users %}<tr><td>{{ u.name }}<small>{{ u.code or '' }}</small></td><td>{{ u.department or '—' }}</td><td class="num">{{ u.rows }}</td><td class="num">{{ u.files }}</td><td class="num">{{ u.size|filesize }}</td><td class="right"><a class="btn ghost sm" href="{{ url_for('admin.backup_run_file', day=run.date, run_time=run.time, kind='by-user', name=u.file) }}">{{ icon('download', 14) }} Download</a></td></tr>
+  {% else %}<tr><td colspan="6" class="muted">No one matches.</td></tr>{% endfor %}</tbody></table></div>
+</div></section>
+{% endblock %}

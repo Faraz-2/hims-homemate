@@ -1,0 +1,199 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, kpi, empty with context %}
+{% block title %}Dashboard{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<section class="welcome">
+  <div>
+    <h1>{{ greeting }}, {{ current_user.name.split()[0] }}</h1>
+    <p>{{ today.strftime('%A, %d %B %Y') }}{% if current_user.department %} · {{ current_user.department.name }}{% endif %}</p>
+  </div>
+  {% if has_perm(current_user, 'attendance.self') %}
+  <div class="checkin">
+    {% if not todays %}
+      <span class="state">You haven't checked in yet.</span>
+      <form method="post" action="{{ url_for('attendance.check_in') }}" class="inline">{{ csrf() }}<button class="btn" type="submit">{{ icon('clock', 16) }} Check in</button></form>
+    {% elif not todays.check_out %}
+      <span class="state">Checked in at {{ todays.check_in|timefmt }}{% if todays.status == 'late' %} (late){% endif %}.</span>
+      <form method="post" action="{{ url_for('attendance.check_out') }}" class="inline">{{ csrf() }}<button class="btn secondary" type="submit">{{ icon('log-out', 16) }} Check out</button></form>
+    {% else %}
+      <span class="state">Worked {{ todays.hours }} h today ({{ todays.check_in|timefmt }} to {{ todays.check_out|timefmt }}).</span>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+
+{% if approvals.total %}
+<div class="notice important mt">
+  {{ icon('alert', 20) }}
+  <div>
+    <b>{{ approvals.total }} item{{ 's' if approvals.total != 1 }} waiting for you.</b>
+    <span class="muted">
+      {% if approvals.tasks %}<a href="{{ url_for('tasks.index', status='in_review', scope='all') }}">{{ approvals.tasks }} task{{ 's' if approvals.tasks != 1 }} to review</a>{% endif %}
+      {% if approvals.leaves %} · <a href="{{ url_for('leaves.index', tab='approvals') }}">{{ approvals.leaves }} leave request{{ 's' if approvals.leaves != 1 }}</a>{% endif %}
+      {% if approvals.expenses %} · <a href="{{ url_for('finance.index', status='submitted') }}">{{ approvals.expenses }} expense{{ 's' if approvals.expenses != 1 }}</a>{% endif %}
+      {% if approvals.requests %} · <a href="{{ url_for('creative.index', box='unassigned') }}">{{ approvals.requests }} design request{{ 's' if approvals.requests != 1 }} to assign</a>{% endif %}
+      {% if approvals.dept_requests %} · <a href="{{ url_for('dept_requests.index', box='all') }}">{{ approvals.dept_requests }} department request{{ 's' if approvals.dept_requests != 1 }}</a>{% endif %}
+      {% if approvals.tickets %} · <a href="{{ url_for('helpdesk.index', kind='it' if dept_ok(current_user, 'it') else 'csr') }}">{{ approvals.tickets }} unassigned ticket{{ 's' if approvals.tickets != 1 }}</a>{% endif %}
+    </span>
+  </div>
+</div>
+{% endif %}
+
+<div class="grid cols-4 mt">
+  {% if exec_kpi %}
+    {{ kpi('Active employees', exec_kpi.employees, 'users', url_for('employees.index')) }}
+    {{ kpi('Open tasks', exec_kpi.open_tasks, 'check-square', url_for('tasks.index', scope='all', status='open')) }}
+    {{ kpi('Open tickets', exec_kpi.open_tickets, 'life-buoy', url_for('helpdesk.index', kind='it') if dept_ok(current_user, 'it') else None, 'CSR, IT and queries') }}
+    {{ kpi('Spend this month', exec_kpi.spend|money, 'dollar', url_for('finance.index'), 'Approved and paid') }}
+  {% else %}
+    {{ kpi('My open tasks', mine.my_open, 'check-square', url_for('tasks.index', status='open')) }}
+    {{ kpi('Overdue', mine.my_overdue, 'alert', url_for('tasks.index', status='overdue'), 'Past their due date', 'alert' if mine.my_overdue else 'calm') }}
+    {{ kpi('Due today', mine.my_due_today, 'clock', None, 'Finish these first') }}
+    {{ kpi('Waiting for me', approvals.total, 'user-check', None, 'Approvals and reviews', 'calm') }}
+  {% endif %}
+</div>
+
+<div class="split mt">
+  <div class="stack">
+    <section class="card accent">
+      <div class="card-head"><h2>Task pipeline</h2><a class="btn ghost sm" href="{{ url_for('tasks.index', view='board', scope='all') }}">Open board</a></div>
+      <div class="card-body">
+        <div class="chain" role="list">
+          {% for p in pipeline %}
+            <a class="step s-{{ p.key }}" role="listitem" href="{{ url_for('tasks.index', scope='all', status=p.key) }}"><b>{{ p.count }}</b><span>{{ p.label }}</span></a>
+          {% endfor %}
+        </div>
+        {% set total = pipeline_total or 1 %}
+        <div class="segbar" role="img" aria-label="Share of tasks by status">
+          {% for p in pipeline %}<i class="s-{{ p.key }}" style="width: {{ (100 * p.count / total)|round(1) }}%"></i>{% endfor %}
+          <i class="s-revision" style="width: {{ (100 * pipeline_extra.revision / total)|round(1) }}%"></i>
+        </div>
+        <div class="legend">
+          <span><i style="background:#B9B2AA"></i>To do</span><span><i style="background:var(--orange)"></i>In progress</span>
+          <span><i style="background:#000"></i>In review</span><span><i style="background:var(--good)"></i>Completed</span>
+          <span><i style="background:var(--bad)"></i>Revision requested: {{ pipeline_extra.revision }}</span>
+        </div>
+      </div>
+    </section>
+
+    {% if dept_rows %}
+    <section class="card">
+      <div class="card-head"><h2>Department performance</h2><small>Last 30 days</small></div>
+      <div class="card-body">
+        <div class="table-wrap"><table class="data">
+          <thead><tr><th>Department</th><th class="num">People</th><th class="num">Open</th><th class="num">Overdue</th><th class="num">Done (30 d)</th><th class="num">Completion</th></tr></thead>
+          <tbody>
+          {% for r in dept_rows %}
+            <tr><td><a class="title" href="{{ url_for('departments.workspace', slug=r.dept.slug) }}">{{ r.dept.name }}</a></td>
+              <td class="num">{{ r.members }}</td><td class="num">{{ r.open }}</td>
+              <td class="num">{% if r.overdue %}<span class="overdue">{{ r.overdue }}</span>{% else %}0{% endif %}</td>
+              <td class="num">{{ r.done }}</td><td class="num">{{ (r.rate ~ '%') if r.rate is not none else '—' }}</td></tr>
+          {% endfor %}
+          </tbody>
+        </table></div>
+      </div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head"><h2>My tasks</h2><a class="btn ghost sm" href="{{ url_for('tasks.new') }}">{{ icon('plus', 14) }} New task</a></div>
+      <div class="card-body">
+        {% if my_tasks %}
+        <ul class="list">
+          {% for t in my_tasks %}
+          <li><span><a class="t" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a>
+            <span class="sub">Due {{ t.due_date|datefmt }}{% if t.is_overdue %} · <span class="overdue">overdue</span>{% endif %}</span></span>
+            <span>{{ badge(t.priority) }} {{ badge(t.status) }}</span></li>
+          {% endfor %}
+        </ul>
+        {% else %}
+          {% call empty('No open tasks', 'You are all clear. New work will show up here.', 'check-square') %}{% endcall %}
+        {% endif %}
+      </div>
+    </section>
+  </div>
+
+  <div class="stack">
+    <section class="card">
+      <div class="card-head"><h2>Quick actions</h2></div>
+      <div class="card-body quick">
+        {% if has_perm(current_user, 'tasks.create') %}<a href="{{ url_for('tasks.new') }}">{{ icon('check-square', 18) }} New task</a>{% endif %}
+        {% if has_perm(current_user, 'leaves.request') %}<a href="{{ url_for('leaves.new') }}">{{ icon('calendar', 18) }} Request leave</a>{% endif %}
+        {% if has_perm(current_user, 'tickets.create') %}<a href="{{ url_for('helpdesk.new', kind='it') }}">{{ icon('monitor', 18) }} IT ticket</a>
+        <a href="{{ url_for('helpdesk.new', kind='queries') }}">{{ icon('help', 18) }} Ask a query</a>{% endif %}
+        {% if has_perm(current_user, 'finance.submit') %}<a href="{{ url_for('finance.new') }}">{{ icon('dollar', 18) }} Submit expense</a>{% endif %}
+        {% if has_perm(current_user, 'creative.request') %}<a href="{{ url_for('creative.new') }}">{{ icon('pen-tool', 18) }} Design request</a>{% endif %}
+      </div>
+    </section>
+
+    {% if att %}
+    <section class="card">
+      <div class="card-head"><h2>Attendance today</h2><a class="btn ghost sm" href="{{ url_for('attendance.team') }}">Details</a></div>
+      <div class="card-body">
+        <div class="grid cols-2">
+          <div><b style="font-size:1.6rem">{{ att.present }}</b><br><small>Present of {{ att.total }}</small></div>
+          <div><b style="font-size:1.6rem">{{ att.late }}</b><br><small>Late</small></div>
+          <div><b style="font-size:1.6rem">{{ att.on_leave }}</b><br><small>On leave</small></div>
+          <div><b style="font-size:1.6rem" class="{{ 'overdue' if att.absent }}">{{ att.absent }}</b><br><small>Not in</small></div>
+        </div>
+      </div>
+    </section>
+    {% elif balances %}
+    <section class="card">
+      <div class="card-head"><h2>My leave balance</h2><a class="btn ghost sm" href="{{ url_for('leaves.index') }}">Leave</a></div>
+      <div class="card-body"><ul class="list">
+        {% for b in balances %}<li><span>{{ b.name }}</span><b>{{ '%g'|format(b.left) }} of {{ b.allowed }} days left</b></li>{% endfor %}
+      </ul></div>
+    </section>
+    {% endif %}
+
+    <section class="card">
+      <div class="card-head"><h2>Announcements</h2><a class="btn ghost sm" href="{{ url_for('announcements.index') }}">All</a></div>
+      <div class="card-body">
+        {% for a in announcements %}
+          <div class="announce"><h3>{{ a.title }}{% if a.important %} <span class="badge tone-warn">Important</span>{% endif %}</h3>
+            <p class="muted" style="margin:4px 0">{{ a.body[:180] }}{{ '…' if a.body|length > 180 }}</p><small>{{ a.author.name }} · {{ a.created_at|timeago }}</small></div>
+        {% else %}<p class="muted">No announcements right now.</p>{% endfor %}
+      </div>
+    </section>
+  </div>
+</div>
+
+{% if workspaces %}
+<section class="mt">
+  <div class="page-head" style="margin-bottom:12px"><h2>{{ 'Department workspaces' if workspaces|length > 1 else 'My workspace' }}</h2></div>
+  <div class="grid cols-3">
+    {% for d in workspaces %}
+      <a class="tool-card" href="{{ url_for('departments.workspace', slug=d.slug) }}"><span class="ico">{{ icon(d.icon, 22) }}</span><span><b>{{ d.name }}</b><small>{{ d.function_list|join(' · ') }}</small></span></a>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<div class="split mt">
+  <section class="card">
+    <div class="card-head"><h2>Recent activity</h2>{% if has_perm(current_user, 'activity.view') %}<a class="btn ghost sm" href="{{ url_for('admin.activity') }}">Activity log</a>{% endif %}</div>
+    <div class="card-body">
+      <ul class="list">
+        {% for a in feed %}<li><span>{{ a.description }}<span class="sub">{{ a.user.name if a.user else 'System' }} · {{ a.created_at|timeago }}</span></span></li>
+        {% else %}<li class="muted">Nothing has happened yet.</li>{% endfor %}
+      </ul>
+    </div>
+  </section>
+  {% if health %}
+  <section class="card dark">
+    <div class="card-head"><h2>System health</h2><a class="btn secondary sm" style="border-color:#fff;color:#fff" href="{{ url_for('admin.index') }}">Admin</a></div>
+    <div class="card-body">
+      <dl class="health">
+        <div><dt>Status</dt><dd><span class="pulse"></span>Running since {{ health.started|dtfmt }}</dd></div>
+        <div><dt>Database</dt><dd>{{ health.database }}{% if health.db_size %} · {{ health.db_size|filesize }}{% endif %}</dd></div>
+        <div><dt>Last backup</dt><dd>{% if health.last_backup %}{{ health.last_backup.created|timeago }}{% else %}<span style="color:#ffb27a">No backup yet</span>{% endif %}</dd></div>
+        <div><dt>People online</dt><dd>{{ health.online }}</dd></div>
+        <div><dt>Address for team laptops</dt><dd>{{ health.address }}</dd></div>
+      </dl>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

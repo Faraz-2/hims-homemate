@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty with context %}
+{% block title %}Activity log{% endblock %}
+{% block heading %}Activity log{% endblock %}
+{% block subheading %}A record of who did what, and when. Entries can't be edited from HIMS.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.index') }}">Back to administration</a>{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Words in the description"></div>
+  <div class="f"><label for="user">Person</label><select id="user" name="user" data-autosubmit><option value="">Anyone</option>{% for u in users %}<option value="{{ u.id }}"{% if user_id == u.id %} selected{% endif %}>{{ u.name }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="action">Action</label><select id="action" name="action" data-autosubmit><option value="">Any</option>{% for a in actions %}<option{% if action == a %} selected{% endif %}>{{ a }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="entity">Area</label><select id="entity" name="entity" data-autosubmit><option value="">Any</option>{% for e in entities %}<option{% if entity == e %} selected{% endif %}>{{ e }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Filter</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Area</th><th>What happened</th><th>From</th></tr></thead><tbody>
+{% for a in pager.items %}<tr><td class="nowrap">{{ a.created_at|dtfmt }}</td><td>{{ a.user.name if a.user else 'System' }}</td><td><span class="chip">{{ a.action }}</span></td><td>{{ a.entity_type or '—' }}</td><td>{{ a.description }}</td><td class="nowrap"><small>{{ a.ip_address or '' }}</small></td></tr>{% endfor %}
+</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No activity matches', 'Try clearing a filter.', 'activity') %}{% endcall %}</div>{% endif %}
+{% endblock %}

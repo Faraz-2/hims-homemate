@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Files{% endblock %}
+{% block heading %}Files{% endblock %}
+{% block subheading %}Upload any type of file. Everything is kept in folders by department and person, and is included in every backup.{% endblock %}
+{% block actions %}{% if can_upload %}<a class="btn" href="{{ url_for('files.upload') }}">{{ icon('upload', 16) }} Upload files</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="tabs">{% for key, name in views %}<a class="{{ 'on' if view == key }}" href="{{ url_for('files.index', view=key) }}">{{ name }}</a>{% endfor %}</div>
+{% if view == 'people' and chosen %}<p class="muted">Showing files of <b>{{ chosen.name }}</b> · <a href="{{ url_for('files.index', view='people') }}">all people</a></p>{% endif %}
+{% if directory is not none %}
+  {% for dept, rows in directory %}
+  <section class="card mt"><div class="card-head"><h2>{{ dept.name if dept else 'No department' }}</h2><small>{{ rows|length }} {{ 'person' if rows|length == 1 else 'people' }}</small></div><div class="card-body"><ul class="list">
+    {% for r in rows %}<li><span style="display:flex;gap:10px;align-items:center"><span class="avatar sm">{{ r.user.initials }}</span><span><a class="t" href="{{ url_for('files.index', view='people', person=r.user.id) }}">{{ r.user.name }}</a><span class="sub">{{ r.user.employee_code or '' }}</span></span></span><small>{{ r.files }} file{{ '' if r.files == 1 else 's' }} · {{ r.bytes|filesize }}</small></li>{% endfor %}
+  </ul></div></section>
+  {% else %}<div class="card mt">{% call empty('No files from your people yet', 'Files uploaded in the Files area will be listed here by person.', 'folder') %}{% endcall %}</div>{% endfor %}
+{% else %}
+<form class="filters" method="get"><input type="hidden" name="view" value="{{ view }}">{% if chosen %}<input type="hidden" name="person" value="{{ chosen.id }}">{% endif %}
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Title or file name"></div>
+  <div class="f"><label for="folder">Folder</label><select id="folder" name="folder" data-autosubmit><option value="">All folders</option>{% for f in folders %}<option{% if folder == f %} selected{% endif %}>{{ f }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="from">From</label><input id="from" name="from" type="date" value="{{ start }}"></div>
+  <div class="f"><label for="to">To</label><input id="to" name="to" type="date" value="{{ end }}"></div>
+  <button class="btn secondary" type="submit">Apply</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>File</th><th>Folder</th><th>Who can see it</th><th>Uploaded by</th><th class="num">Size</th><th></th></tr></thead><tbody>
+{% for f in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('files.download', fid=f.id) }}">{{ f.title }}</a><small>{{ f.original_name }}{% if f.description %} · {{ f.description }}{% endif %}</small></td>
+    <td>{{ icon('folder', 14) }} {{ f.folder }}</td>
+    <td>{{ {'private': 'Only the owner', 'department': (f.department.name ~ ' team') if f.department else 'Department', 'company': 'Whole company'}[f.visibility] }}</td>
+    <td>{{ f.owner.name }}<small>{{ f.created_at|dtfmt }}</small></td><td class="num">{{ f.size|filesize }}</td>
+    <td class="nowrap"><a class="btn ghost sm" href="{{ url_for('files.download', fid=f.id) }}">{{ icon('download', 14) }}</a>
+      {% if can_change(f) %}<a class="btn ghost sm" href="{{ url_for('files.edit', fid=f.id) }}">{{ icon('edit', 14) }}</a>
+      <form method="post" action="{{ url_for('files.delete', fid=f.id) }}" class="inline" data-confirm="Delete this file permanently?">{{ csrf() }}<button class="btn danger sm" type="submit">{{ icon('trash', 14) }}</button></form>{% endif %}</td></tr>
+{% endfor %}</tbody></table></div>{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('No files here yet', 'Upload a contract, price list, report, photo or video.', 'folder') %}{% endcall %}</div>{% endif %}
+{% endif %}
+{% endblock %}

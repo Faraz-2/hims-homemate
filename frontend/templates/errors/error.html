@@ -1,0 +1,11 @@
+{% extends 'base.html' if current_user.is_authenticated else 'auth_base.html' %}
+{% block title %}{{ title }}{% endblock %}
+{% block page_head %}{% endblock %}
+{% block content %}
+<div class="error-page">
+  <div class="code">{{ code }}</div>
+  <h1>{{ title }}</h1>
+  <p class="muted">{{ text }}</p>
+  <p><a class="btn" href="{{ url_for('dashboard.index') }}">{{ 'Back to dashboard' if current_user.is_authenticated else 'Go to sign in' }}</a></p>
+</div>
+{% endblock %}

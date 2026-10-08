@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block title %}Departments{% endblock %}
+{% block heading %}Departments{% endblock %}
+{% block subheading %}The nine Home Mate teams. Each one has its own workspace; you can open the ones you belong to.{% endblock %}
+{% block actions %}{% if has_perm(current_user, 'departments.manage') %}<a class="btn" href="{{ url_for('departments.new') }}">{{ icon('plus', 16) }} New department</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  {% for d in depts %}
+  <article class="dept-card">
+    <span class="ico">{{ icon(d.icon or 'building', 24) }}</span>
+    <div><h2>{{ d.name }}</h2><p class="muted" style="margin:6px 0 0">{{ d.description }}</p></div>
+    <div class="tags">{% for f in d.function_list %}<span class="chip">{{ f }}</span>{% endfor %}</div>
+    <div class="stats"><span><b>{{ members.get(d.id, 0) }}</b>People</span><span><b>{{ open_tasks.get(d.id, 0) }}</b>Open tasks</span>
+      <span><b>{% if d.heads %}{{ d.heads[0].name.split()[0] }}{% else %}—{% endif %}</b>Head</span>
+      <span><b>{% if d.co_heads %}{{ d.co_heads[0].name.split()[0] }}{% else %}—{% endif %}</b>Co-head</span></div>
+    <div class="actions">
+      {% if can_open(d) %}<a class="btn sm" href="{{ url_for('departments.workspace', slug=d.slug) }}">Open workspace</a>{% else %}<span class="muted">{{ icon('lock', 14) }} Members only</span>{% endif %}
+      <a class="btn ghost sm" href="{{ url_for('helpdesk.new', kind='queries', dept=d.id) }}">Ask a query</a>
+      {% if has_perm(current_user, 'departments.manage') %}<a class="btn ghost sm" href="{{ url_for('departments.edit', slug=d.slug) }}">Edit</a>{% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+{% endblock %}

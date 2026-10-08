@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#F47B20">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="HIMS">
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='img/logo-128.png') }}">
+  <title>{% block title %}Home Mate{% endblock %} | HIMS</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-32.png') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/hims.css') }}">
+</head>
+<body>
+<div class="shell">
+  <div class="backdrop" data-toggle-sidebar></div>
+  <aside class="sidebar" id="sidebar" aria-label="Main navigation">
+    <a class="brand" href="{{ url_for('dashboard.index') }}">
+      <img src="{{ url_for('static', filename='img/logo.png') }}" alt="">
+      <span><b>{{ company_name }}</b><small>HIMS</small></span>
+    </a>
+    <button class="icon-btn drawer-close" type="button" data-toggle-sidebar aria-label="Close menu">{{ icon('x', 18) }}</button>
+    <nav>
+      {% for section in nav %}
+        <div class="nav-title">{{ section.title }}</div>
+        {% for item in section.links %}
+          <a class="nav-link{% if item.active %} active{% endif %}" href="{{ url_for(item.endpoint, **item.params) }}"{% if item.active %} aria-current="page"{% endif %}>
+            {{ icon(item.icon, 18) }}<span>{{ item.label }}</span>
+          </a>
+        {% endfor %}
+      {% endfor %}
+    </nav>
+    <div class="sidebar-foot">{{ company_name }} internal system<br>Version {{ app_version }}</div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="icon-btn menu-toggle" type="button" data-toggle-sidebar aria-label="Open menu" aria-controls="sidebar">{{ icon('menu', 20) }}</button>
+      <a class="topbar-brand" href="{{ url_for('dashboard.index') }}" aria-label="Home"><img src="{{ url_for('static', filename='img/logo-64.png') }}" alt=""></a>
+      <form class="search" action="{{ url_for('search.index') }}" method="get" role="search">
+        {{ icon('search', 16) }}
+        <input type="search" name="q" placeholder="Search people, tasks, vendors, files" aria-label="Search HIMS" enterkeyhint="search"
+               value="{{ request.args.get('q', '') if request.endpoint == 'search.index' else '' }}">
+      </form>
+      <div class="topbar-right">
+        <span class="clock" data-clock aria-hidden="true"></span>
+        {% if has_perm(current_user, 'messages.use') %}
+        <a class="icon-btn" href="{{ url_for('messages.index') }}" aria-label="Messages ({{ unread_messages }} unread)">
+          {{ icon('message', 18) }}{% if unread_messages %}<span class="dot">{{ unread_messages if unread_messages < 100 else '99+' }}</span>{% endif %}
+        </a>
+        {% endif %}
+        <details class="menu">
+          <summary class="icon-btn" aria-label="Notifications ({{ unread_count }} unread)">
+            {{ icon('bell', 18) }}{% if unread_count %}<span class="dot">{{ unread_count if unread_count < 100 else '99+' }}</span>{% endif %}
+          </summary>
+          <div class="dropdown">
+            <div class="dropdown-head"><span>Notifications</span>
+              {% if unread_count %}<form method="post" action="{{ url_for('notifications.read_all') }}" class="inline"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="btn ghost sm" type="submit">Mark all read</button></form>{% endif %}
+            </div>
+            <div class="dropdown-scroll" tabindex="0" aria-label="Recent notifications, scrollable">
+            {% for n in recent_notifications %}
+              <a class="row{% if not n.is_read %} unread{% endif %}" href="{{ url_for('notifications.open_one', nid=n.id) }}">
+                <b>{{ n.title }}</b>
+                {% if n.body %}<small>{{ n.body[:90] }}</small>{% endif %}
+                <small>{{ n.created_at|timeago }}</small>
+              </a>
+            {% else %}
+              <div class="row muted">You're all caught up.</div>
+            {% endfor %}
+            </div>
+            <a class="row" href="{{ url_for('notifications.index') }}"><b>See all notifications</b></a>
+          </div>
+        </details>
+        <details class="menu">
+          <summary class="profile-chip">
+            <span class="avatar">{{ current_user.initials }}</span>
+            <span class="who"><b>{{ current_user.name }}</b><small>{{ current_user.role.name }}</small></span>
+          </summary>
+          <div class="dropdown" style="width:270px">
+            <div class="dropdown-head"><span>{{ current_user.name }}<br><small>{{ current_user.email }}</small></span></div>
+            <a class="row" href="{{ url_for('employees.profile', uid=current_user.id) }}">My profile</a>
+            <a class="row" href="{{ url_for('auth.change_password') }}">Change password</a>
+            <form method="post" action="{{ url_for('auth.logout') }}">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <button class="row" type="submit">{{ icon('log-out', 16) }} Sign out</button>
+            </form>
+          </div>
+        </details>
+      </div>
+    </header>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flashes" role="status">
+          {% for category, message in messages %}
+            <div class="flash {{ category }}"><span>{{ message }}</span><button type="button" data-dismiss aria-label="Dismiss">&times;</button></div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <main class="page" id="main">
+      {% block page_head %}
+      <div class="page-head">
+        <div>
+          <h1>{% block heading %}{% endblock %}</h1>
+          <p class="sub">{% block subheading %}{% endblock %}</p>
+        </div>
+        <div class="actions">{% block actions %}{% endblock %}</div>
+      </div>
+      {% endblock %}
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+      <span><span class="mark"></span><b>{{ company_name }}</b> · Home Mate Integrated Management System (HIMS) v{{ app_version }}</span>
+      <span>Internal use only</span>
+    </footer>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/hims.js') }}"></script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Manage roles{% endblock %}
+{% block heading %}Manage roles{% endblock %}
+{% block subheading %}Create job categories such as Senior Designer, HR Executive or Trainee. Each role has a tier (how much authority) and its own rights.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.roles') }}">Permission matrix</a><a class="btn" href="{{ url_for('admin.role_new') }}">{{ icon('plus', 16) }} New role</a>{% endblock %}
+{% block content %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Role</th><th>Tier</th><th class="num">People</th><th class="num">Rights</th><th></th></tr></thead><tbody>
+{% for r in rows %}
+  <tr><td><b>{{ r.role.name }}</b>{% if r.built_in %} <span class="chip">Built in</span>{% endif %}<small>{{ r.role.description or '' }}</small></td>
+    <td>{{ tiers.get(r.role.level, 'Level ' ~ r.role.level) if r.role.level in tiers else ('Full control' if r.role.level >= 100 else 'Level ' ~ r.role.level) }}</td>
+    <td class="num">{{ r.users }}</td><td class="num">{{ r.perms }}</td>
+    <td class="nowrap">{% if r.role.key != 'super_admin' %}<a class="btn ghost sm" href="{{ url_for('admin.role_edit', rid=r.role.id) }}">Edit</a>{% endif %}
+      {% if not r.built_in %}<form method="post" action="{{ url_for('admin.role_delete', rid=r.role.id) }}" class="inline" data-confirm="Delete the role {{ r.role.name }}?">{{ csrf() }}<button class="btn danger sm" type="submit">Delete</button></form>{% endif %}</td></tr>
+{% endfor %}
+</tbody></table></div>
+<p class="muted" style="margin-top:12px">Deleting is only possible for roles you created and only when nobody has them. To change what a role can do, use the <a href="{{ url_for('admin.roles') }}">permission matrix</a>.</p>
+{% endblock %}

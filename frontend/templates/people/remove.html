@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Remove {{ person.name }}{% endblock %}
+{% block heading %}Remove {{ person.name }} from the team{% endblock %}
+{% block subheading %}{{ person.title_label }}{% if person.department %} · {{ person.department.name }}{% endif %}. Nothing is erased: their history stays, their account is switched off.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.profile', uid=person.id) }}">Cancel</a>{% endblock %}
+{% block content %}
+<form method="post" class="stack" style="max-width:820px" data-confirm="Remove {{ person.name }} from the team?">{{ csrf() }}
+  <section class="card accent"><div class="card-head"><h2>What happens</h2></div><div class="card-body">
+    <ul>
+      <li>{{ person.name }} can no longer sign in, and no longer appears in any <b>Assign to</b> list, so no new tasks can be generated for them.</li>
+      <li>Their roles in other departments end{% if links %} ({% for l in links %}{{ l.role.name }} in {{ l.department.name }}{{ ', ' if not loop.last }}{% endfor %}){% endif %}.</li>
+      <li>Everything they did, and their files and backups, stay in HIMS. You can reactivate them from their profile later.</li>
+    </ul>
+    {% if total %}<h3 style="margin-top:14px">Open work to hand over ({{ total }})</h3><ul>{% for k, n in counts.items() %}<li>{{ n }} {{ k|lower }}</li>{% endfor %}</ul>{% else %}<p class="muted">They have no open work.</p>{% endif %}
+    {% if reports %}<p><b>{{ reports|length }}</b> direct report(s) will move to {{ person.reports_to.name if person.reports_to else 'the person who takes over' }}: {% for u in reports %}{{ u.name }}{{ ', ' if not loop.last }}{% endfor %}.</p>{% endif %}
+  </div></section>
+  <section class="card"><div class="card-body"><div class="form-grid">
+    <div class="field{% if errors.reason %} has-error{% endif %}"><label for="reason">Reason</label><select id="reason" name="reason">{% for r in reasons %}<option{% if values.reason == r %} selected{% endif %}>{{ r }}</option>{% endfor %}</select>{% if errors.reason %}<small class="error">{{ errors.reason }}</small>{% endif %}</div>
+    <div class="field{% if errors.handover %} has-error{% endif %}"><label for="handover">Hand their work to</label><select id="handover" name="handover"><option value="">Select…</option>{% for u in candidates %}<option value="{{ u.id }}"{% if values.handover == u.id|string %} selected{% endif %}>{{ u.name }} ({{ u.department.name if u.department else 'No department' }})</option>{% endfor %}</select>{% if errors.handover %}<small class="error">{{ errors.handover }}</small>{% endif %}</div>
+    {% if counts.get('Tasks') %}<div class="field full"><label>Their {{ counts['Tasks'] }} open task(s)</label>
+      <label class="check"><input type="radio" name="tasks" value="handover"{% if values.tasks != 'cancel' %} checked{% endif %}> <span>Hand them to the person above</span></label>
+      <label class="check"><input type="radio" name="tasks" value="cancel"{% if values.tasks == 'cancel' %} checked{% endif %}> <span>Cancel them (they can be restored later)</span></label></div>{% endif %}
+    <div class="field full"><label for="note">Note (optional)</label><input id="note" name="note" maxlength="400" value="{{ values.note }}"></div>
+  </div></div></section>
+  <div><button class="btn danger" type="submit">{{ icon('user-minus', 16) }} Remove from team</button> <a class="btn ghost" href="{{ url_for('employees.profile', uid=person.id) }}">Cancel</a></div>
+</form>
+{% endblock %}

@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf with context %}
+{% block title %}Roles and permissions{% endblock %}
+{% block heading %}Roles and permissions{% endblock %}
+{% block subheading %}Tick what each role may do. The Super Admin always has full access. Some areas are also limited to particular departments, no matter what is ticked here.{% endblock %}
+{% block actions %}<a class="btn secondary" href="{{ url_for('admin.roles_manage') }}">Add or edit roles</a><a class="btn ghost" href="{{ url_for('admin.index') }}">Back to administration</a>{% endblock %}
+{% block content %}
+<form method="post">{{ csrf() }}
+<div class="table-wrap"><table class="data matrix">
+  <thead><tr><th>Permission</th>{% for r in roles %}<th class="role">{{ r.name }}<small style="display:block;font-weight:500">{{ counts.get(r.id, 0) }} user(s)</small></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for module, perms in modules.items() %}
+    <tr class="module"><td colspan="{{ roles|length + 1 }}">{{ module }}</td></tr>
+    {% for p in perms %}
+    <tr><td>{{ p.label }}<small>{{ p.code }}</small></td>
+      {% for r in roles %}<td class="cell">
+        {% if r.key == 'super_admin' %}<input type="checkbox" checked disabled aria-label="{{ p.label }} for {{ r.name }} (always on)">
+        {% else %}<input type="checkbox" name="grant" value="{{ r.id }}:{{ p.id }}"{% if (r.id, p.id) in granted %} checked{% endif %} aria-label="{{ p.label }} for {{ r.name }}">{% endif %}</td>{% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+<div class="form-actions"><button class="btn" type="submit">Save permissions</button><a class="btn ghost" href="{{ url_for('admin.index') }}">Cancel</a></div>
+</form>
+{% endblock %}

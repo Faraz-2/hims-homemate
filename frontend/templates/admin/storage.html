@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block title %}Where data is stored{% endblock %}
+{% block heading %}Where data is stored{% endblock %}
+{% block subheading %}Every location HIMS uses, and how files are sorted by department and person.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('admin.backups') }}">Back to backups</a>{% endblock %}
+{% block content %}
+<section class="card accent"><div class="card-head"><h2>Folders on the server</h2></div><div class="card-body"><div class="table-wrap"><table class="data"><thead><tr><th>What</th><th>Location</th><th>Contains</th></tr></thead><tbody>
+{% for name, path, text in info.locations %}<tr><td><b>{{ name }}</b></td><td><code>{{ path }}</code></td><td>{{ text }}</td></tr>{% endfor %}</tbody></table></div>
+<p class="muted">Uploads are filed as <code>departments/&lt;department&gt;/&lt;person&gt;/&lt;year&gt;/&lt;month&gt;/&lt;kind&gt;/</code>. Backups are filed as <code>organized/&lt;year&gt;/&lt;date&gt;/&lt;time&gt;/by-department</code> and <code>by-user</code>.</p></div></section>
+<section class="card mt"><div class="card-head"><h2>Uploaded files by department and person</h2></div><div class="card-body scroll-box">
+{% for d in info.tree %}<h3 style="margin:12px 0 4px">{{ d.name }} <small class="muted">{{ d.files }} file(s) · {{ d.bytes|filesize }}</small></h3>
+<ul class="list">{% for p in d.people %}<li><span>{{ p.name }}<span class="sub"><code>{{ d.folder }}/{{ p.folder }}</code></span></span><small>{{ p.files }} file(s) · {{ p.bytes|filesize }}</small></li>{% endfor %}</ul>
+{% else %}<p class="muted">No files have been uploaded in the new folder structure yet.</p>{% endfor %}</div></section>
+{% if info.legacy.folders %}<section class="card mt"><div class="card-head"><h2>Files uploaded before version 1.5</h2><small>{{ info.legacy.files }} file(s) · {{ info.legacy.bytes|filesize }}</small></div><div class="card-body"><p class="muted">These stay where they are and keep working. Organised backups still sort them by department, person and date using the database.</p>
+<ul class="list">{% for f in info.legacy.folders %}<li><code>{{ f.name }}/</code><small>{{ f.files }} file(s) · {{ f.bytes|filesize }}</small></li>{% endfor %}</ul></div></section>{% endif %}
+{% endblock %}

@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import kpi, empty with context %}
+{% block title %}{{ dept.name }}{% endblock %}
+{% block heading %}{{ dept.name }}{% endblock %}
+{% block subheading %}{{ dept.description }}{% endblock %}
+{% block actions %}
+  {% if has_perm(current_user, 'tasks.create') %}<a class="btn" href="{{ url_for('tasks.new') }}">{{ icon('plus', 16) }} New task</a>{% endif %}
+  {% if has_perm(current_user, 'departments.manage') %}<a class="btn ghost" href="{{ url_for('departments.edit', slug=dept.slug) }}">Edit department</a>{% endif %}
+  {% if current_user.manages_department(dept.id) and (has_perm(current_user, 'employees.manage') or has_perm(current_user, 'employees.manage_team')) %}<a class="btn secondary" href="{{ url_for('people.hire', dept=dept.slug) }}">{{ icon('user-plus', 16) }} Hire into {{ dept.name }}</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="tags" style="margin-bottom:16px">{% for f in dept.function_list %}<span class="chip">{{ f }}</span>{% endfor %}</div>
+<div class="grid cols-5">
+  {{ kpi('People', kpis.members, 'users', None, kpis.present ~ ' checked in today') }}
+  {{ kpi('Open tasks', kpis.open, 'check-square', url_for('tasks.index', scope='all', status='open', dept=dept.id if current_user.is_admin_level else None)) }}
+  {{ kpi('Overdue', kpis.overdue, 'alert', None, '', 'alert' if kpis.overdue else 'calm') }}
+  {{ kpi('In review', kpis.review, 'user-check', None, 'Waiting for sign-off', 'calm') }}
+  {{ kpi('Done in 30 days', kpis.done30, 'check') }}
+</div>
+
+<div class="split mt">
+  <div class="stack">
+    <section class="card accent"><div class="card-head"><h2>Department tools</h2></div><div class="card-body">
+      <div class="grid cols-2">
+        {% for label_text, endpoint, params, ico, blurb in tools %}
+          <a class="tool-card" href="{{ url_for(endpoint, **params) }}"><span class="ico">{{ icon(ico, 20) }}</span><span><b>{{ label_text }}</b><small>{{ blurb }}</small></span></a>
+        {% endfor %}
+        <a class="tool-card" href="{{ url_for('helpdesk.new', kind='queries', dept=dept.id) }}"><span class="ico">{{ icon('help', 20) }}</span><span><b>Send a query to {{ dept.name }}</b><small>Ask the team a question outside a task.</small></span></a>
+        {% if has_perm(current_user, 'requests.create') and current_user.department_id != dept.id %}<a class="tool-card" href="{{ url_for('dept_requests.new', to=dept.id) }}"><span class="ico">{{ icon('arrow-right', 20) }}</span><span><b>Send a request to {{ dept.name }}</b><small>Formal work request with approval.</small></span></a>{% endif %}
+        {% if has_perm(current_user, 'messages.use') %}<a class="tool-card" href="{{ url_for('messages.index') }}"><span class="ico">{{ icon('message', 20) }}</span><span><b>Team chat</b><small>Message the team or a colleague.</small></span></a>{% endif %}
+        {% if has_perm(current_user, 'files.view') %}<a class="tool-card" href="{{ url_for('files.index', view='department') }}"><span class="ico">{{ icon('archive', 20) }}</span><span><b>Files</b><small>Upload any file; sorted by person and department.</small></span></a>{% endif %}
+        <a class="tool-card" href="{{ url_for('documents.index') }}"><span class="ico">{{ icon('folder', 20) }}</span><span><b>Documents</b><small>Shared files and templates.</small></span></a>
+      </div>
+    </div></section>
+
+    {% if progress and progress.rows %}
+    <section class="card"><div class="card-head"><h2>Team progress</h2><small>{{ progress.overall.done }} of {{ progress.overall.total }} tasks completed{% if progress.overall.rate is not none %} ({{ progress.overall.rate }}%){% endif %}</small></div><div class="card-body">
+      {% set o = progress.overall %}{% set total = o.total or 1 %}
+      <div class="segbar" role="img" aria-label="Overall team task progress">
+        <i class="s-todo" style="width:{{ (100 * o.assigned / total)|round(1) }}%"></i><i class="s-in_progress" style="width:{{ (100 * o.working / total)|round(1) }}%"></i>
+        <i class="s-in_review" style="width:{{ (100 * o.submitted / total)|round(1) }}%"></i><i class="s-revision" style="width:{{ (100 * o.changes / total)|round(1) }}%"></i>
+        <i class="s-completed" style="width:{{ (100 * o.done / total)|round(1) }}%"></i></div>
+      <div class="legend"><span><i style="background:#B9B2AA"></i>Assigned</span><span><i style="background:var(--orange)"></i>In progress</span><span><i style="background:#000"></i>Submitted</span><span><i style="background:var(--bad)"></i>Needs changes</span><span><i style="background:var(--good)"></i>Completed</span></div>
+      <div class="table-wrap" style="margin-top:14px"><table class="data"><thead><tr><th>Person</th><th class="num">Assigned</th><th class="num">In progress</th><th class="num">Submitted</th><th class="num">Needs changes</th><th class="num">Completed</th><th class="num">Overdue</th><th class="num">Completion</th></tr></thead><tbody>
+      {% for r in progress.rows %}<tr><td><a class="title" href="{{ url_for('employees.profile', uid=r.user.id) }}">{{ r.user.name }}</a></td>
+        <td class="num">{{ r.assigned }}</td><td class="num">{{ r.working }}</td><td class="num">{{ r.submitted }}</td><td class="num">{{ r.changes }}</td><td class="num">{{ r.done }}</td>
+        <td class="num">{% if r.overdue %}<span class="overdue">{{ r.overdue }}</span>{% else %}0{% endif %}</td><td class="num">{{ (r.rate ~ '%') if r.rate is not none else '—' }}</td></tr>{% endfor %}
+      </tbody></table></div>
+    </div></section>
+    {% endif %}
+
+    <section class="card"><div class="card-head"><h2>Open tasks</h2><a class="btn ghost sm" href="{{ url_for('tasks.index', scope='all', status='open') }}">All tasks</a></div><div class="card-body">
+      {% if tasks %}
+      <div class="table-wrap"><table class="data"><thead><tr><th>Task</th><th>Assigned to</th><th>Due</th><th>Status</th></tr></thead><tbody>
+      {% for t in tasks %}<tr><td><a class="title" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a></td><td>{{ t.assignee.name if t.assignee else '—' }}</td>
+        <td>{{ t.due_date|datefmt }}{% if t.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td><td>{{ badge(t.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>
+      {% else %}{% call empty('No open tasks', 'Create a task to get the team moving.', 'check-square') %}{% endcall %}{% endif %}
+    </div></section>
+  </div>
+
+  <aside class="stack">
+    <section class="card"><div class="card-head"><h2>Team</h2><small>{{ team|length }}</small></div><div class="card-body"><ul class="list scroll-list">
+      {% for u in team %}<li><span style="display:flex;gap:10px;align-items:center"><span class="avatar sm">{{ u.initials }}</span><span><a class="t" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.name }}</a><span class="sub">{{ team_role.get(u.id) or u.job_title or u.title_label }}</span></span></span></li>
+      {% else %}<li class="muted">No one has been added to this department yet.</li>{% endfor %}
+    </ul></div></section>
+    <section class="card"><div class="card-head"><h2>Department announcements</h2></div><div class="card-body">
+      {% for a in announcements %}<div class="announce"><h3>{{ a.title }}</h3><p class="muted" style="margin:4px 0">{{ a.body[:160] }}</p><small>{{ a.created_at|timeago }}</small></div>
+      {% else %}<p class="muted">Nothing posted for this department.</p>{% endfor %}
+    </div></section>
+    <section class="card"><div class="card-head"><h2>Department files</h2></div><div class="card-body"><ul class="list">
+      {% for d in docs %}<li><a class="t" href="{{ url_for('documents.download', did=d.id) }}">{{ d.title }}</a><small>{{ d.created_at|timeago }}</small></li>
+      {% else %}<li class="muted">No files yet.</li>{% endfor %}
+    </ul></div></section>
+  </aside>
+</div>
+{% endblock %}

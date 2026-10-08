@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% block title %}Roles and rights{% endblock %}
+{% block heading %}Roles and rights{% endblock %}
+{% block subheading %}What each kind of employee can do in HIMS. This page is built from the live permission matrix, so it is always up to date.{% endblock %}
+{% block actions %}{% if has_perm(current_user, 'admin.roles') %}<a class="btn secondary" href="{{ url_for('admin.roles') }}">Edit the matrix</a><a class="btn ghost" href="{{ url_for('admin.roles_manage') }}">Manage roles</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="notice important">
+  {{ icon('shield', 20) }}
+  <div><b>You are: {{ mine.name }}.</b> <span class="muted">{{ mine.description or '' }}
+    {% if personal %} An administrator has made {{ personal }} individual adjustment{{ 's' if personal != 1 }} to your rights, so your column below may differ slightly from yours.{% endif %}</span></div>
+</div>
+
+<div class="table-wrap mt"><table class="data matrix">
+  <thead><tr><th>What people can do</th>
+    {% for r in roles %}<th class="role"{% if r.id == mine.id %} style="outline:3px solid #000;outline-offset:-3px"{% endif %}>{{ r.name }}<small style="display:block;font-weight:500">{{ counts.get(r.id, 0) }} {{ 'person' if counts.get(r.id, 0) == 1 else 'people' }}</small></th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for group, rows in groups.items() %}
+    <tr class="module"><td colspan="{{ roles|length + 1 }}">{{ group }}</td></tr>
+    {% for row in rows %}
+    <tr><td>{{ row.text }}</td>
+      {% for r in roles %}<td class="cell">{% if row.has[r.id] %}<span aria-label="Yes" title="Yes">{{ icon('check', 18) }}</span>{% else %}<span class="muted" aria-label="No" title="No">&mdash;</span>{% endif %}</td>{% endfor %}
+    </tr>
+    {% endfor %}
+  {% endfor %}
+  </tbody>
+</table></div>
+
+<div class="grid cols-2 mt">
+  <section class="card accent"><div class="card-head"><h2>Who can give tasks to whom</h2></div><div class="card-body">
+    <ul>
+      <li><b>Everyone</b> can create tasks for themselves.</li>
+      <li><b>Team Leads and Department Heads</b> can give tasks to the people <b>in their own department who rank below them</b>, and to anyone who <b>reports to them</b>. They cannot give tasks to peers, to their own boss, or to other departments.</li>
+      <li><b>Admins</b> can give tasks to anyone.</li>
+      <li><b>Interns and Employees</b> cannot give tasks to others. To ask another department for work, send a <a href="{{ url_for('dept_requests.new') }}">department request</a> instead.</li>
+    </ul>
+    <p class="muted">Each employee's "reports to" line is set when they are added, and can be changed on their profile.</p>
+  </div></section>
+  <section class="card accent"><div class="card-head"><h2>Roles, employment types and exceptions</h2></div><div class="card-body">
+    <ul>
+      <li>A <b>role</b> (Intern, Employee, Team Lead, Department Head, Admin, or any role your administrator creates) decides what a person can do.</li>
+      <li>An <b>employment type</b> ({% for k, n in etypes %}{{ n }}{{ ', ' if not loop.last }}{% endfor %}) describes the contract. It is a label for HR and reports; it does not change rights by itself.</li>
+      <li>A manager can grant or remove <b>one specific right</b> for one person under <em>Employees &gt; person &gt; Rights</em>, without changing their whole role. You can only hand out rights you hold yourself.</li>
+      <li>Some areas are also limited by department (for example Finance, Recruitment, CSR). Those limits apply on top of the roles above.</li>
+    </ul>
+  </div></section>
+</div>
+{% endblock %}

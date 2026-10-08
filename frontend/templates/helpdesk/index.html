@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty, kpi with context %}
+{% block title %}{{ title }}{% endblock %}
+{% block heading %}{{ title }}{% endblock %}
+{% block subheading %}{{ intro }}{% endblock %}
+{% block actions %}
+  {% if has_perm(current_user, 'reports.export') and kind != 'query' %}<a class="btn ghost" href="{{ url_for('reports.export', name='tickets') }}">{{ icon('download', 16) }} Export CSV</a>{% endif %}
+  <a class="btn" href="{{ url_for('helpdesk.new', kind=url_kind) }}">{{ icon('plus', 16) }} {{ {'csr': 'New CSR ticket', 'it': 'New IT ticket', 'query': 'New query'}[kind] }}</a>
+{% endblock %}
+{% block content %}
+<div class="grid cols-3">
+  {{ kpi('Open', counts.open, 'life-buoy') }}
+  {{ kpi('Urgent', counts.urgent, 'alert', None, 'Open and marked urgent', 'alert' if counts.urgent else 'calm') }}
+  {{ kpi('Unassigned', counts.unassigned, 'user-check', None, 'Nobody has picked these up', 'calm') }}
+</div>
+<div class="tabs mt">
+  {% for key, name in ([('all', 'Everything I can see'), ('assigned', 'Assigned to me'), ('mine', 'Raised by me')] + ([('inbox', 'Sent to me or my team')] if kind == 'query' else [])) %}
+    <a class="{{ 'on' if box == key }}" href="{{ url_for('helpdesk.index', kind=url_kind, box=key, status=status, q=q or None) }}">{{ name }}</a>
+  {% endfor %}
+</div>
+<form class="filters" method="get"><input type="hidden" name="box" value="{{ box }}">
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Subject or details"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit><option value="open"{% if status == 'open' %} selected{% endif %}>Open</option><option value="all"{% if status == 'all' %} selected{% endif %}>All</option>
+    {% for k, n in statuses %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <button class="btn secondary" type="submit">Search</button></form>
+{% if pager.items %}
+<div class="table-wrap"><table class="data"><thead><tr><th>Ticket</th><th>{{ 'Customer' if kind == 'csr' else 'Raised by' }}</th>{% if kind == 'query' %}<th>Asked</th>{% else %}<th>Type</th>{% endif %}<th>Assigned to</th><th>Priority</th><th>Updated</th><th>Status</th></tr></thead><tbody>
+{% for t in pager.items %}
+  <tr><td><a class="title" href="{{ url_for('helpdesk.detail', tid=t.id) }}">{{ t.subject }}</a><small>{{ t.number }}</small></td>
+    <td>{{ (t.customer_name or '—') if kind == 'csr' else t.requester.name }}{% if kind == 'csr' %}<small>Logged by {{ t.requester.name }}</small>{% endif %}</td>
+    {% if kind == 'query' %}<td>{{ t.target_user.name if t.target_user else (t.target_department.name if t.target_department else '—') }}</td>{% else %}<td>{{ t.category or '—' }}</td>{% endif %}
+    <td>{{ t.assignee.name if t.assignee else '—' }}</td><td>{{ badge(t.priority) }}</td><td class="nowrap">{{ t.updated_at|timeago }}</td><td>{{ badge(t.status) }}</td></tr>
+{% endfor %}
+</tbody></table></div>
+{{ pager(pager) }}
+{% else %}<div class="card">{% call empty('Nothing here', 'No tickets match this view.', 'life-buoy') %}{% endcall %}</div>{% endif %}
+{% endblock %}

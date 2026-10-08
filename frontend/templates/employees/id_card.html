@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ person.name }} · Employee ID · HIMS</title>
+<link rel="icon" type="image/png" href="{{ url_for('static', filename='img/logo-32.png') }}">
+<style>
+  body { margin: 0; background: #EFEAE4; font-family: "Segoe UI", system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 24px; }
+  .card { width: 340px; border-radius: 16px; overflow: hidden; background: #fff; box-shadow: 0 10px 30px rgba(0,0,0,.18); border: 1px solid #E7E2DC; }
+  .top { background: #000; color: #fff; padding: 16px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 4px solid #F47B20; }
+  .top img { width: 30px; height: 30px; border-radius: 7px; }
+  .top b { font-size: .95rem; }
+  .top small { display: block; color: #F47B20; font-weight: 700; letter-spacing: .04em; }
+  .body { padding: 20px; text-align: center; }
+  .avatar { width: 84px; height: 84px; border-radius: 50%; background: #000; color: #F47B20; font-weight: 700; font-size: 1.8rem; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; }
+  .name { font-size: 1.2rem; font-weight: 700; color: #1C1C1C; margin: 0; }
+  .role { color: #B54708; font-weight: 600; margin: 2px 0 14px; }
+  .facts { text-align: left; border-top: 1px dashed #E7E2DC; padding-top: 14px; display: grid; gap: 8px; font-size: .9rem; }
+  .facts div { display: flex; justify-content: space-between; gap: 10px; }
+  .facts dt { color: #5E5A55; }
+  .facts dd { margin: 0; font-weight: 600; text-align: right; }
+  .code { text-align: center; margin-top: 16px; font-weight: 800; letter-spacing: .12em; font-size: 1.1rem; color: #000; background: #FFF3E8; border: 1px dashed #F47B20; border-radius: 8px; padding: 8px; }
+  .foot { text-align: center; padding: 10px; font-size: .74rem; color: #5E5A55; border-top: 1px solid #E7E2DC; }
+  .print-bar { max-width: 340px; margin: 0 auto 14px; text-align: right; }
+  .print-bar button { background: #F47B20; border: 2px solid #F47B20; color: #000; font-weight: 700; padding: 8px 16px; border-radius: 7px; cursor: pointer; }
+  @media print { body { background: #fff; padding: 0; } .print-bar { display: none; } .card { box-shadow: none; border: 1px solid #ccc; } }
+</style>
+</head>
+<body>
+<div>
+  <div class="print-bar"><button onclick="window.print()">Print / Save as PDF</button></div>
+  <div class="card">
+    <div class="top"><img src="{{ url_for('static', filename='img/logo.png') }}" alt=""><span><b>{{ company_name }}</b><small>EMPLOYEE ID</small></span></div>
+    <div class="body">
+      <div class="avatar">{{ person.initials }}</div>
+      <p class="name">{{ person.name }}</p>
+      <p class="role">{{ person.job_title or person.title_label }}</p>
+      {% if person.secondary_roles %}<p style="color:#5E5A55;font-size:.8rem;margin:-8px 0 12px">{% for r in person.secondary_roles %}{{ r.role.name }} · {{ r.department.name }}{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+      <dl class="facts">
+        <div><dt>Department</dt><dd>{{ person.department.name if person.department else '—' }}</dd></div>
+        <div><dt>Employment type</dt><dd>{{ person.employment_label }}</dd></div>
+        <div><dt>Joined</dt><dd>{{ person.joined_on|datefmt }}</dd></div>
+        <div><dt>Status</dt><dd>{{ 'Active' if person.active else 'Inactive' }}</dd></div>
+      </dl>
+      <div class="code">{{ person.employee_code }}</div>
+    </div>
+    <div class="foot">This card confirms {{ person.name.split()[0] }} is an employee of {{ company_name }}.</div>
+  </div>
+</div>
+</body>
+</html>

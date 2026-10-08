@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, form_fields with context %}
+{% block title %}Hire someone{% endblock %}
+{% block heading %}Hire someone{% endblock %}
+{% block subheading %}Add a head, co-head, team lead, employee or intern. They can hold roles in several departments at once.{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('employees.index') }}">Back to employees</a>{% endblock %}
+{% block content %}
+<div class="card form-card"><div class="card-body">
+  {% if form.errors or extra_error %}<div class="flash error" role="alert"><span>{{ extra_error or 'Please fix the highlighted fields and try again.' }}</span></div><br>{% endif %}
+  <form method="post" novalidate>{{ csrf() }}
+    {{ form_fields(form) }}
+    <h3 style="margin:22px 0 4px">Also works in other departments (optional)</h3>
+    <p class="muted" style="margin:0 0 10px">For example a Team Lead in IT who is also an Intern in Marketing. Roles here show on the department's team list and on the person's profile. A role at Team Lead level or above lets them manage that department's work. Their actual permissions always come from the main role above.</p>
+    {% if depts %}
+    <div class="form-grid">
+      {% for e in extras %}{% set n = loop.index %}
+      <div class="field"><label for="extra_dept_{{ n }}">Department {{ n }}</label><select id="extra_dept_{{ n }}" name="extra_dept_{{ n }}"><option value="">None</option>{% for id, name in depts %}<option value="{{ id }}"{% if e.dept == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+      <div class="field"><label for="extra_role_{{ n }}">Role {{ n }}</label><select id="extra_role_{{ n }}" name="extra_role_{{ n }}"><option value="">None</option>{% for id, name in roles %}<option value="{{ id }}"{% if e.role == id|string %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+      {% endfor %}
+    </div>
+    {% else %}<p class="muted">You can only add people to your own department.</p>{% endif %}
+    <div class="form-actions"><button class="btn" type="submit">Hire</button><a class="btn ghost" href="{{ url_for('employees.index') }}">Cancel</a></div>
+  </form>
+</div></div>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block with context %}
+{% block title %}{{ req.title }}{% endblock %}
+{% block heading %}{{ req.title }}{% endblock %}
+{% block subheading %}{{ req.kind }} · {{ badge(req.status) }} {{ badge(req.priority) }}{% if req.is_overdue %} <span class="badge tone-bad">Overdue</span>{% endif %}{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('creative.index') }}">Back to requests</a>{% if can_edit %}<a class="btn secondary" href="{{ url_for('creative.edit', rid=req.id) }}">{{ icon('edit', 16) }} Edit brief</a>{% endif %}{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body">
+      <dl class="facts">
+        <div><dt>Requested by</dt><dd>{{ req.requested_by.name }}</dd></div>
+        <div><dt>Department</dt><dd>{{ req.requesting_department.name if req.requesting_department else '—' }}</dd></div>
+        <div><dt>Working on it</dt><dd>{{ req.assignee.name if req.assignee else 'Not picked up yet' }}</dd></div>
+        <div><dt>Needed by</dt><dd>{{ req.due_date|datefmt }}</dd></div>
+        <div><dt>Submitted</dt><dd>{{ req.created_at|dtfmt }}</dd></div>
+        <div><dt>Delivered</dt><dd>{{ req.delivered_at|dtfmt }}</dd></div>
+        {% if req.reference_link %}<div style="grid-column:1/-1"><dt>Reference</dt><dd>{{ req.reference_link }}</dd></div>{% endif %}
+      </dl>
+      {% if req.brief %}<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><div class="prose">{{ req.brief }}</div>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-head"><h2>Comments and history</h2></div><div class="card-body">{{ comments_block(comments, url_for('creative.comment', rid=req.id), placeholder='Share feedback or ask a question') }}</div></section>
+  </div>
+  <aside class="stack">
+    <section class="card"><div class="card-head"><h2>Next step</h2></div><div class="card-body">
+      {% if can_claim %}<form method="post" action="{{ url_for('creative.claim', rid=req.id) }}" class="step-form">{{ csrf() }}<button class="btn" type="submit">Pick this up</button></form><br>{% endif %}
+      {% if steps %}<div class="stack" style="gap:14px">
+        {% for s in steps %}
+        <form class="step-form" method="post" action="{{ url_for('creative.transition', rid=req.id) }}"{% if s.style == 'danger' %} data-confirm="{{ s.label }}?"{% endif %}>
+          {{ csrf() }}<input type="hidden" name="to" value="{{ s.dst }}">
+          {% if s.note %}<textarea name="note" rows="2" placeholder="What should change? (required)" aria-label="Note" required></textarea>{% endif %}
+          <button class="btn {{ 'danger' if s.style == 'danger' else ('secondary' if s.style == 'secondary' else '') }}" type="submit">{{ s.label }}</button>
+        </form>{% endfor %}</div>
+      {% elif not can_claim %}<p class="muted">Nothing for you to do on this request right now.</p>{% endif %}
+    </div></section>
+    {% if can_assign %}
+    <section class="card"><div class="card-head"><h2>Assign</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for('creative.assign', rid=req.id) }}" class="step-form">{{ csrf() }}
+        <select name="assignee_id" aria-label="Assign to"><option value="">Choose a person</option>{% for u in team %}<option value="{{ u.id }}"{% if u.id == req.assignee_id %} selected{% endif %}>{{ u.name }}</option>{% endfor %}</select>
+        <button class="btn secondary" type="submit">Assign</button></form>
+    </div></section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

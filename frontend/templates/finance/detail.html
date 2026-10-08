@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block with context %}
+{% block title %}{{ exp.title }}{% endblock %}
+{% block heading %}{{ exp.title }}{% endblock %}
+{% block subheading %}{{ exp.amount|money }} · {{ badge(exp.status) }}{% endblock %}
+{% block actions %}<a class="btn ghost" href="{{ url_for('finance.index') }}">Back to expenses</a>{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-body">
+      <dl class="facts">
+        <div><dt>Amount</dt><dd><b>{{ exp.amount|money }}</b></dd></div>
+        <div><dt>Category</dt><dd>{{ exp.category }}</dd></div>
+        <div><dt>Date of expense</dt><dd>{{ exp.expense_date|datefmt }}</dd></div>
+        <div><dt>Submitted by</dt><dd>{{ exp.submitted_by.name }}</dd></div>
+        <div><dt>Department</dt><dd>{{ exp.department.name if exp.department else '—' }}</dd></div>
+        <div><dt>Vendor</dt><dd>{% if exp.vendor and dept_ok(current_user, 'vendors') %}<a href="{{ url_for('vendors.detail', vid=exp.vendor.id) }}">{{ exp.vendor.name }}</a>{% else %}{{ exp.vendor.name if exp.vendor else '—' }}{% endif %}</dd></div>
+        <div><dt>Receipt</dt><dd>{% if exp.receipt_file %}<a href="{{ url_for('finance.receipt', eid=exp.id) }}">{{ icon('download', 14) }} {{ exp.receipt_name }}</a>{% else %}None attached{% endif %}</dd></div>
+        {% if exp.decided_by %}<div><dt>Decision by</dt><dd>{{ exp.decided_by.name }} · {{ exp.decided_at|dtfmt }}</dd></div>{% endif %}
+        {% if exp.paid_on %}<div><dt>Paid on</dt><dd>{{ exp.paid_on|datefmt }}</dd></div>{% endif %}
+      </dl>
+      {% if exp.description %}<hr style="border:0;border-top:1px solid var(--line);margin:18px 0"><div class="prose">{{ exp.description }}</div>{% endif %}
+      {% if exp.decision_note %}<div class="notice" style="margin-top:16px"><div><b>Decision note</b><br>{{ exp.decision_note }}</div></div>{% endif %}
+    </div></section>
+    <section class="card"><div class="card-head"><h2>Comments and history</h2></div><div class="card-body">{{ comments_block(comments, url_for('finance.comment', eid=exp.id)) }}</div></section>
+  </div>
+  <aside class="stack">
+    {% if can_decide and exp.status in ('submitted', 'approved') %}
+    <section class="card"><div class="card-head"><h2>Decision</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for('finance.decide', eid=exp.id) }}" class="step-form" style="gap:12px">{{ csrf() }}
+        {% if exp.status == 'submitted' %}
+          <textarea name="note" rows="2" placeholder="Note (required when rejecting)" aria-label="Decision note"></textarea>
+          <button class="btn good" name="action" value="approve" type="submit">Approve</button>
+          <button class="btn danger" name="action" value="reject" type="submit">Reject</button>
+        {% else %}<button class="btn" name="action" value="pay" type="submit">Mark as paid</button>{% endif %}
+      </form>
+    </div></section>
+    {% endif %}
+    {% if can_withdraw %}<section class="card"><div class="card-body"><form method="post" action="{{ url_for('finance.withdraw', eid=exp.id) }}" data-confirm="Withdraw this expense?">{{ csrf() }}<button class="btn danger block" type="submit">Withdraw expense</button></form></div></section>{% endif %}
+  </aside>
+</div>
+{% endblock %}

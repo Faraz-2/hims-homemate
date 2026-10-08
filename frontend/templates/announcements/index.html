@@ -1,0 +1,19 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, pager, empty with context %}
+{% block title %}Announcements{% endblock %}
+{% block heading %}Announcements{% endblock %}
+{% block subheading %}News and notices from management and your department.{% endblock %}
+{% block actions %}{% if can_post %}<a class="btn" href="{{ url_for('announcements.new') }}">{{ icon('plus', 16) }} New announcement</a>{% endif %}{% endblock %}
+{% block content %}
+<section class="card"><div class="card-body">
+  {% for a in pager.items %}
+  <article class="announce">
+    <h3>{{ a.title }}{% if a.important %} <span class="badge tone-warn">Important</span>{% endif %}{% if a.department %} <span class="chip">{{ a.department.name }}</span>{% endif %}</h3>
+    <div class="prose" style="margin:8px 0">{{ a.body }}</div>
+    <small>{{ a.author.name }} · {{ a.created_at|dtfmt }}</small>
+    {% if can_post %}<form method="post" action="{{ url_for('announcements.delete', aid=a.id) }}" class="inline" data-confirm="Delete this announcement?">{{ csrf() }} <button class="btn ghost sm" type="submit">Delete</button></form>{% endif %}
+  </article>
+  {% else %}{% call empty('No announcements', 'When management posts news, you will see it here and in your notifications.', 'megaphone') %}{% endcall %}{% endfor %}
+</div></section>
+{{ pager(pager) }}
+{% endblock %}

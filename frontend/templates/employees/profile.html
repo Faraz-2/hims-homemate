@@ -1,0 +1,139 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, kpi with context %}
+{% block title %}{{ person.name }}{% endblock %}
+{% block page_head %}
+<div class="page-head">
+  <div style="display:flex;gap:18px;align-items:center">
+    <span class="avatar lg">{{ person.initials }}</span>
+    <div>
+      <h1>{{ person.name }}</h1>
+      <p class="sub">{{ person.job_title or person.title_label }}{% if person.department %} · {{ person.department.name }}{% endif %} · {{ badge('active' if person.active else 'inactive') }}</p>
+      {% if person.secondary_roles %}<p class="sub">Also: {% for r in person.secondary_roles %}{{ r.role.name }} in {{ r.department.name }}{{ ', ' if not loop.last }}{% endfor %}</p>{% endif %}
+    </div>
+  </div>
+  <div class="actions">
+    {% if is_self %}<a class="btn ghost" href="{{ url_for('auth.change_password') }}">{{ icon('lock', 16) }} Change password</a>{% endif %}
+    {% if can_edit or (is_self and has_perm(current_user, 'employees.manage')) %}<a class="btn" href="{{ url_for('employees.edit', uid=person.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+    <a class="btn secondary" href="{{ url_for('employees.id_card', uid=person.id) }}" target="_blank" rel="noopener">{{ icon('id-card', 16) }} ID card</a>
+  </div>
+</div>
+{% endblock %}
+{% block content %}
+<div class="split">
+  <div class="stack">
+    <section class="card accent"><div class="card-head"><h2>Details</h2></div><div class="card-body">
+      <dl class="facts">
+        <div><dt>Employee code</dt><dd>{{ person.employee_code or '—' }}</dd></div>
+        <div><dt>Role</dt><dd>{{ person.title_label }}{% if person.display_title %}<small>Holds the {{ person.role.name }} role</small>{% endif %}</dd></div>
+        <div><dt>Employment type</dt><dd>{{ person.employment_label }}</dd></div>
+        <div><dt>Reports to</dt><dd>{% if person.reports_to %}<a href="{{ url_for('employees.profile', uid=person.reports_to.id) }}">{{ person.reports_to.name }}</a>{% else %}—{% endif %}</dd></div>
+        <div><dt>Department</dt><dd>{% if person.department and (current_user.is_admin_level or current_user.department_id == person.department_id) %}<a href="{{ url_for('departments.workspace', slug=person.department.slug) }}">{{ person.department.name }}</a>{% else %}{{ person.department.name if person.department else '—' }}{% endif %}</dd></div>
+        <div><dt>Email</dt><dd>{{ person.email }}</dd></div>
+        <div><dt>Phone</dt><dd>{{ person.phone or '—' }}</dd></div>
+        <div><dt>Joined</dt><dd>{{ person.joined_on|datefmt }}</dd></div>
+        {% if stats %}<div><dt>Last sign-in</dt><dd>{{ person.last_login_at|dtfmt }}</dd></div>{% endif %}
+      </dl>
+    </div></section>
+
+    {% if direct_reports %}
+    <section class="card"><div class="card-head"><h2>Direct reports</h2><small>{{ direct_reports|length }} {{ 'person' if direct_reports|length == 1 else 'people' }}</small></div><div class="card-body"><ul class="list">
+      {% for u in direct_reports %}<li><span style="display:flex;gap:10px;align-items:center"><span class="avatar sm">{{ u.initials }}</span><span><a class="t" href="{{ url_for('employees.profile', uid=u.id) }}">{{ u.name }}</a><span class="sub">{{ u.job_title or u.role.name }}</span></span></span><small>{{ u.employment_label }}</small></li>{% endfor %}
+    </ul></div></section>
+    {% endif %}
+
+    <section class="card" id="departments"><div class="card-head"><h2>Departments and roles</h2>{% if not person.task_assignable and person.active %}<span class="badge tone-warn">Task assignment paused</span>{% endif %}</div><div class="card-body">
+      <ul class="list">
+        <li><span><b>{{ person.title_label }}</b><span class="sub">Main role · {{ person.department.name if person.department else 'No department' }}</span></span></li>
+        {% for r in person.secondary_roles %}<li><span><b>{{ r.role.name }}</b><span class="sub">Also in {{ r.department.name }}</span></span>
+          {% if staffing.can_revoke(r) %}<form method="post" action="{{ url_for('people.remove_department_role', uid=person.id, lid=r.id) }}" class="inline" data-confirm="End {{ person.name }}'s {{ r.role.name }} role in {{ r.department.name }}?">{{ csrf() }}<button class="btn danger sm" type="submit">{{ icon('x', 12) }} Remove</button></form>{% endif %}</li>{% endfor %}
+      </ul>
+      {% if staffing.can_roles %}
+      <form method="post" action="{{ url_for('people.add_department_role', uid=person.id) }}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:12px">{{ csrf() }}
+        <select name="department_id" required aria-label="Department"><option value="">Add to department…</option>{% for id, name in staffing.dept_options %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select>
+        <select name="role_id" required aria-label="Role"><option value="">as role…</option>{% for id, name in staffing.role_options %}<option value="{{ id }}">{{ name }}</option>{% endfor %}</select>
+        <button class="btn secondary sm" type="submit">{{ icon('plus', 14) }} Add role</button></form>{% endif %}
+      {% if staffing.can_pause or staffing.can_remove %}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;padding-top:14px;border-top:1px solid var(--line)">
+        {% if staffing.can_pause %}<form method="post" action="{{ url_for('people.toggle_assignment', uid=person.id) }}" class="inline">{{ csrf() }}<button class="btn secondary sm" type="submit">{{ 'Allow new tasks again' if staffing.paused else 'Pause task assignment' }}</button></form>{% endif %}
+        {% if staffing.can_remove %}<a class="btn danger sm" href="{{ url_for('people.remove', uid=person.id) }}">{{ icon('user-minus', 14) }} Remove from team…</a>{% endif %}
+      </div>
+      <p class="muted" style="margin:8px 0 0"><small>Pausing keeps the person on the team but hides them from every "Assign to" list. Removing hands their open work to a colleague you choose and switches off their account.</small></p>
+      {% endif %}
+      {% if has_perm(current_user, 'admin.backup') %}<p style="margin:10px 0 0"><a href="{{ url_for('admin.backup_user_history', uid=person.id) }}">{{ icon('database', 14) }} Backups of {{ person.name }}</a></p>{% endif %}
+    </div></section>
+
+    {% if can_docs %}
+    <section class="card" id="documents"><div class="card-head"><h2>Documents and certifications</h2>{% if missing_required %}<span class="badge tone-bad">{{ missing_required }} required missing</span>{% endif %}</div><div class="card-body">
+      {% if doc_rows %}
+      <div class="table-wrap"><table class="data"><thead><tr><th>Document</th><th>Category</th><th>Status</th><th>Expiry</th><th></th></tr></thead><tbody>
+      {% for r in doc_rows %}
+        <tr><td>{{ r.type.name }}{% if r.type.required %}<small class="overdue">Required</small>{% else %}<small>Optional</small>{% endif %}</td>
+          <td>{{ r.type.category }}</td>
+          <td>{% if not r.doc %}<span class="badge tone-neutral">Not uploaded</span>
+              {% elif r.type.verification_required and not r.doc.verified %}<span class="badge tone-warn">Pending verification</span>
+              {% elif r.doc.is_expired %}<span class="badge tone-bad">Expired</span>
+              {% elif r.doc.expiring_soon %}<span class="badge tone-warn">Expiring soon</span>
+              {% else %}<span class="badge tone-good">{{ 'Verified' if r.doc.verified else 'Uploaded' }}</span>{% endif %}</td>
+          <td>{{ r.doc.expiry_date|datefmt if r.doc and r.doc.expiry_date else '—' }}</td>
+          <td class="nowrap">
+            {% if r.doc %}<a class="btn ghost sm" href="{{ url_for('employees.doc_file', uid=person.id, doc_id=r.doc.id) }}">{{ icon('download', 14) }}</a>
+              {% if has_perm(current_user, 'employees.documents') and not r.doc.verified and r.type.verification_required %}<form method="post" action="{{ url_for('employees.doc_verify', uid=person.id, doc_id=r.doc.id) }}" class="inline">{{ csrf() }}<button class="btn secondary sm" type="submit">Verify</button></form>{% endif %}
+              <form method="post" action="{{ url_for('employees.doc_delete', uid=person.id, doc_id=r.doc.id) }}" class="inline" data-confirm="Delete this document?">{{ csrf() }}<button class="btn danger sm" type="submit">{{ icon('x', 12) }}</button></form>
+            {% else %}
+              <form method="post" action="{{ url_for('employees.doc_upload', uid=person.id, type_id=r.type.id) }}" enctype="multipart/form-data" style="display:flex;gap:6px;align-items:center">{{ csrf() }}
+                <input type="file" name="file" required style="max-width:150px">
+                {% if r.type.expiry_required %}<input type="date" name="expiry_date" required title="Expiry date">{% endif %}
+                <button class="btn sm" type="submit">Upload</button></form>
+            {% endif %}
+          </td></tr>
+      {% endfor %}
+      </tbody></table></div>
+      {% else %}<p class="muted">No document types have been configured yet.</p>{% endif %}
+    </div></section>
+    {% endif %}
+
+    {% if stats %}
+    <div class="grid cols-4">
+      {{ kpi('Open tasks', stats.open_tasks, 'check-square') }}
+      {{ kpi('Done in 30 days', stats.done_30, 'check') }}
+      {{ kpi('Days present (month)', stats.present, 'clock', None, stats.late ~ ' late') }}
+      {{ kpi('Annual leave used', ('%g'|format(stats.leave[0][1])) ~ ' / ' ~ stats.leave[0][2], 'calendar') }}
+    </div>
+    <section class="card"><div class="card-head"><h2>Open tasks</h2></div><div class="card-body">
+      <ul class="list">
+      {% for t in recent %}<li><span><a class="t" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a><span class="sub">Due {{ t.due_date|datefmt }}</span></span>{{ badge(t.status) }}</li>
+      {% else %}<li class="muted">No open tasks.</li>{% endfor %}
+      </ul>
+    </div></section>
+    {% endif %}
+  </div>
+
+  {% if can_edit and not is_self %}
+  <aside class="stack">
+    {% if promo.up or promo.down %}
+    <section class="card accent"><div class="card-head"><h2>Career ladder</h2></div><div class="card-body">
+      <p class="muted">Current: <b>{{ person.role.name }}</b></p>
+      <div class="actions">
+        {% if promo.up %}<form method="post" action="{{ url_for('employees.promote', uid=person.id) }}" data-confirm="Promote {{ person.name }} to {{ promo.up.name }}?" class="inline">{{ csrf() }}<input type="hidden" name="direction" value="up"><button class="btn good" type="submit">{{ icon('trending-up', 16) }} Promote to {{ promo.up.name }}</button></form>{% endif %}
+        {% if promo.down %}<form method="post" action="{{ url_for('employees.promote', uid=person.id) }}" data-confirm="Move {{ person.name }} back to {{ promo.down.name }}?" class="inline">{{ csrf() }}<input type="hidden" name="direction" value="down"><button class="btn ghost" type="submit">Move back to {{ promo.down.name }}</button></form>{% endif %}
+      </div>
+    </div></section>
+    {% endif %}
+
+    {% if can_rights %}
+    <section class="card accent"><div class="card-head"><h2>Rights</h2></div><div class="card-body">
+      <p class="muted">Role: <b>{{ person.role.name }}</b>.{% if overrides %} {{ overrides }} individual exception{{ 's' if overrides != 1 }} set.{% endif %} Give or take away a single right for {{ person.name.split()[0] }} without changing the role.</p>
+      <a class="btn secondary block" href="{{ url_for('employees.rights', uid=person.id) }}">{{ icon('shield', 16) }} Manage rights</a>
+    </div></section>
+    {% endif %}
+    <section class="card"><div class="card-head"><h2>Account</h2></div><div class="card-body">
+      <p class="muted">Reset the password if someone is locked out, or deactivate the account when they leave. Their history is kept.</p>
+      <form method="post" action="{{ url_for('employees.reset_password', uid=person.id) }}" data-confirm="Generate a new temporary password for {{ person.name }}?" class="inline">{{ csrf() }}<button class="btn secondary block" type="submit">Reset password</button></form>
+      <br><br>
+      <form method="post" action="{{ url_for('employees.toggle', uid=person.id) }}" data-confirm="{{ 'Deactivate' if person.active else 'Reactivate' }} {{ person.name }}?" class="inline">{{ csrf() }}
+        <button class="btn {{ 'danger' if person.active else '' }} block" type="submit">{{ 'Deactivate account' if person.active else 'Reactivate account' }}</button></form>
+    </div></section>
+  </aside>
+  {% endif %}
+</div>
+{% endblock %}

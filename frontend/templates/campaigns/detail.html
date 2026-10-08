@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import csrf, comments_block, empty with context %}
+{% block title %}{{ campaign.name }}{% endblock %}
+{% block heading %}{{ campaign.name }}{% endblock %}
+{% block subheading %}{{ campaign.department.name if campaign.department else '—' }} · {{ badge(campaign.status) }}{% if campaign.is_overdue %} <span class="badge tone-bad">Overdue</span>{% endif %}{% endblock %}
+{% block actions %}
+  <a class="btn ghost" href="{{ url_for('campaigns.index') }}">Back to campaigns</a>
+  {% if can_manage %}<a class="btn secondary" href="{{ url_for('campaigns.edit', cid=campaign.id) }}">{{ icon('edit', 16) }} Edit</a>{% endif %}
+  {% if has_perm(current_user, 'tasks.create') %}<a class="btn" href="{{ url_for('tasks.new') }}">{{ icon('plus', 16) }} New task</a>{% endif %}
+{% endblock %}
+{% block content %}
+<div class="grid cols-5">
+  <div class="kpi calm"><div class="k-label">{{ icon('users', 16) }}Reach</div><div class="k-value">{{ campaign.reach }}</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('trending-up', 16) }}Leads</div><div class="k-value">{{ campaign.leads_generated }}</div><div class="k-hint">{{ campaign.qualified_leads }} qualified</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('check', 16) }}Conversions</div><div class="k-value">{{ campaign.conversions }}</div><div class="k-hint">{{ (campaign.conversion_rate ~ '%') if campaign.conversion_rate is not none else '—' }} rate</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('activity', 16) }}Engagement</div><div class="k-value">{{ campaign.engagement }}</div></div>
+  <div class="kpi calm"><div class="k-label">{{ icon('dollar', 16) }}Spend</div><div class="k-value" style="font-size:1.3rem">{{ campaign.spend|money }}</div><div class="k-hint">{{ (campaign.cost_per_lead|money ~ ' / lead') if campaign.cost_per_lead is not none else '' }}</div></div>
+</div>
+
+<div class="split mt">
+  <div class="stack">
+    <section class="card accent"><div class="card-body">
+      <dl class="facts">
+        <div><dt>Objective</dt><dd>{{ campaign.objective or '—' }}</dd></div>
+        <div><dt>Platforms</dt><dd>{{ campaign.platform_list|join(', ') if campaign.platform_list else '—' }}</dd></div>
+        <div><dt>Owner</dt><dd>{{ campaign.owner.name }}</dd></div>
+        <div><dt>Timeline</dt><dd>{{ campaign.start_date|datefmt('%d %b') if campaign.start_date else '—' }} to {{ campaign.end_date|datefmt('%d %b %Y') if campaign.end_date else '—' }}</dd></div>
+        <div><dt>Budget</dt><dd>{{ campaign.budget|money }}</dd></div>
+        {% if campaign.target_audience %}<div style="grid-column:1/-1"><dt>Target audience</dt><dd>{{ campaign.target_audience }}</dd></div>{% endif %}
+      </dl>
+    </div></section>
+
+    <section class="card"><div class="card-head"><h2>Customer acquisition</h2></div><div class="card-body">
+      <p class="muted">Leads in the sales pipeline that were marked as coming from this campaign. These are counted automatically; the "Leads" figure above is the number you log by hand.</p>
+      <dl class="facts">
+        <div><dt>Leads in pipeline</dt><dd><b>{{ pipeline.leads }}</b></dd></div>
+        <div><dt>Still open</dt><dd>{{ pipeline.open }}</dd></div>
+        <div><dt>Won (customers)</dt><dd><b>{{ pipeline.won }}</b></dd></div>
+        <div><dt>Win rate</dt><dd>{{ ((100 * pipeline.won / pipeline.leads)|round(1) ~ '%') if pipeline.leads else '—' }}</dd></div>
+      </dl>
+    </div></section>
+
+    <section class="card"><div class="card-head"><h2>Linked tasks</h2></div><div class="card-body">
+      {% if tasks %}<div class="table-wrap"><table class="data"><thead><tr><th>Task</th><th>Assigned to</th><th>Due</th><th>Status</th></tr></thead><tbody>
+      {% for t in tasks %}<tr><td><a class="title" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a></td><td>{{ t.assignee.name if t.assignee else '—' }}</td>
+        <td>{{ t.due_date|datefmt }}{% if t.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td><td>{{ badge(t.status) }}</td></tr>{% endfor %}
+      </tbody></table></div>{% else %}{% call empty('No tasks linked yet', 'Create a task and set this campaign when assigning it.', 'check-square') %}{% endcall %}{% endif %}
+    </div></section>
+
+    <section class="card"><div class="card-head"><h2>Content and media</h2></div><div class="card-body">
+      <p class="muted">Every upload is kept as a new version. Captions, copy and creative drafts all go here as comments and files.</p>
+      <form method="post" action="{{ url_for('campaigns.media_upload', cid=campaign.id) }}" enctype="multipart/form-data" class="step-form" style="gap:10px;margin-bottom:18px">{{ csrf() }}
+        <input type="file" name="file" required><span class="file-name help"></span>
+        <input type="text" name="note" maxlength="300" placeholder="Caption or note (optional)" aria-label="Note">
+        <button class="btn secondary" type="submit">{{ icon('upload', 16) }} Upload content</button>
+      </form>
+      {{ comments_block(comments, url_for('campaigns.comment', cid=campaign.id), file_endpoint='campaigns.media_file', placeholder='Add a note or discuss this campaign') }}
+    </div></section>
+  </div>
+  <aside class="stack">
+    {% if can_manage %}
+    <section class="card"><div class="card-head"><h2>Log performance</h2></div><div class="card-body">
+      <form method="post" action="{{ url_for('campaigns.metrics', cid=campaign.id) }}" class="form-grid" style="gap:12px">{{ csrf() }}
+        <div class="field"><label for="reach">Reach</label><input id="reach" type="number" name="reach" min="0" value="{{ campaign.reach }}"></div>
+        <div class="field"><label for="leads_generated">Leads generated</label><input id="leads_generated" type="number" name="leads_generated" min="0" value="{{ campaign.leads_generated }}"></div>
+        <div class="field"><label for="qualified_leads">Qualified leads</label><input id="qualified_leads" type="number" name="qualified_leads" min="0" value="{{ campaign.qualified_leads }}"></div>
+        <div class="field"><label for="conversions">Conversions</label><input id="conversions" type="number" name="conversions" min="0" value="{{ campaign.conversions }}"></div>
+        <div class="field"><label for="engagement">Engagement</label><input id="engagement" type="number" name="engagement" min="0" value="{{ campaign.engagement }}"></div>
+        <div class="field"><label for="spend">Spend so far</label><input id="spend" type="number" name="spend" min="0" step="0.01" value="{{ campaign.spend }}"></div>
+        <div class="field full"><button class="btn block" type="submit">Save performance</button></div>
+      </form>
+    </div></section>
+    {% endif %}
+  </aside>
+</div>
+{% endblock %}

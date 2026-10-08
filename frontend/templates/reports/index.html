@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import bars, kpi, empty with context %}
+{% block title %}Reports and MIS{% endblock %}
+{% block heading %}Reports and MIS{% endblock %}
+{% block subheading %}{{ scope_name }} · last {{ days }} days{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <div class="f"><label for="days">Period</label><select id="days" name="days" data-autosubmit>{% for n, name in [(7, 'Last 7 days'), (30, 'Last 30 days'), (90, 'Last 90 days'), (365, 'Last 12 months')] %}<option value="{{ n }}"{% if days == n %} selected{% endif %}>{{ name }}</option>{% endfor %}</select></div>
+  {% if wide %}<div class="f"><label for="dept">Department</label><select id="dept" name="dept" data-autosubmit><option value="">All departments</option>{% for x in departments %}<option value="{{ x.id }}"{% if dept == x.id %} selected{% endif %}>{{ x.name }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn secondary" type="submit">Update</button>
+</form>
+{% if can_export %}
+<div class="actions" style="margin-bottom:18px">
+  <span class="muted">Export for Excel:</span>
+  {% set qs = {'days': days, 'dept': dept} %}
+  <a class="btn ghost sm" href="{{ url_for('reports.export', name='tasks', **qs) }}">Tasks</a>
+  <a class="btn ghost sm" href="{{ url_for('reports.export', name='attendance', **qs) }}">Attendance</a>
+  <a class="btn ghost sm" href="{{ url_for('reports.export', name='leaves', **qs) }}">Leave</a>
+  {% if show.expenses %}<a class="btn ghost sm" href="{{ url_for('reports.export', name='expenses', **qs) }}">Expenses</a>{% endif %}
+  {% if show.leads %}<a class="btn ghost sm" href="{{ url_for('reports.export', name='leads', **qs) }}">Leads</a>{% endif %}
+  {% if show.tickets %}<a class="btn ghost sm" href="{{ url_for('reports.export', name='tickets', **qs) }}">Tickets</a>{% endif %}
+  {% if show.recruitment %}<a class="btn ghost sm" href="{{ url_for('reports.export', name='candidates', **qs) }}">Candidates</a>{% endif %}
+</div>
+{% endif %}
+
+<div class="grid cols-4">
+  {{ kpi('Tasks created', d.tasks_created, 'check-square') }}
+  {{ kpi('Tasks completed', d.tasks_done, 'check', None, ('On time: ' ~ d.on_time ~ '%') if d.on_time is not none else 'No due dates to compare') }}
+  {{ kpi('Open tasks now', d.tasks_open, 'activity', None, '', 'calm') }}
+  {{ kpi('Overdue now', d.tasks_overdue, 'alert', None, '', 'alert' if d.tasks_overdue else 'calm') }}
+</div>
+
+<div class="grid cols-2 mt">
+  <section class="card accent"><div class="card-head"><h2>Tasks by status</h2><small>Created in this period</small></div><div class="card-body">{{ bars(d.task_status) }}</div></section>
+  <section class="card accent"><div class="card-head"><h2>Tasks completed per week</h2><small>Last 8 weeks</small></div><div class="card-body">
+    {% set peak = (d.weekly_done|map(attribute=1)|max) or 1 %}
+    <div class="weeks" role="img" aria-label="Tasks completed per week">{% for wk, n in d.weekly_done %}<div class="w"><i style="height: {{ (100 * n / peak)|round(0) }}%"></i><b>{{ n }}</b><span>{{ wk }}</span></div>{% endfor %}</div>
+  </div></section>
+</div>
+
+{% if d.dept_rows %}
+<section class="card mt"><div class="card-head"><h2>Department scorecard</h2></div><div class="card-body"><div class="table-wrap"><table class="data">
+  <thead><tr><th>Department</th><th class="num">People</th><th class="num">Created</th><th class="num">Completed</th><th class="num">Open now</th><th class="num">Overdue</th></tr></thead><tbody>
+  {% for r in d.dept_rows %}<tr><td>{{ r.dept.name }}</td><td class="num">{{ r.members }}</td><td class="num">{{ r.created }}</td><td class="num">{{ r.done }}</td><td class="num">{{ r.open }}</td><td class="num">{% if r.overdue %}<span class="overdue">{{ r.overdue }}</span>{% else %}0{% endif %}</td></tr>{% endfor %}
+  </tbody></table></div></div></section>
+{% endif %}
+
+<div class="grid cols-2 mt">
+  <section class="card"><div class="card-head"><h2>Leave taken</h2><small>Approved days</small></div><div class="card-body">{{ bars(d.leave) }}</div></section>
+  {% if d.headcount %}<section class="card"><div class="card-head"><h2>Headcount</h2></div><div class="card-body">{{ bars(d.headcount) }}</div></section>{% endif %}
+</div>
+
+<section class="card mt"><div class="card-head"><h2>Attendance by employee</h2><small>Days present, late arrivals, average hours</small></div><div class="card-body">
+  <div class="table-wrap"><table class="data"><thead><tr><th>Employee</th><th>Department</th><th class="num">Days present</th><th class="num">Late</th><th class="num">Avg hours</th></tr></thead><tbody>
+  {% for r in d.attendance %}<tr><td>{{ r.user.name }}</td><td>{{ r.user.department.name if r.user.department else '—' }}</td><td class="num">{{ r.present }}</td><td class="num">{{ r.late }}</td><td class="num">{{ r.avg_hours if r.avg_hours is not none else '—' }}</td></tr>
+  {% else %}<tr><td colspan="5" class="muted">No employees in scope.</td></tr>{% endfor %}</tbody></table></div>
+</div></section>
+
+{% if show.expenses and d.exp_total is defined %}
+<div class="grid cols-2 mt">
+  <section class="card"><div class="card-head"><h2>Spending by category</h2><small>Approved and paid</small></div><div class="card-body"><p><b style="font-size:1.5rem">{{ d.exp_total|money }}</b> <span class="muted">total · {{ d.exp_pending }} awaiting approval</span></p>{{ bars(d.exp_category, money=True) }}</div></section>
+  {% if show.leads and d.lead_stages is defined %}
+  <section class="card"><div class="card-head"><h2>Lead pipeline</h2><small>{% if d.win_rate is not none %}Win rate {{ d.win_rate }}%{% endif %}</small></div><div class="card-body">
+    <p><b style="font-size:1.5rem">{{ d.pipeline_value|money }}</b> <span class="muted">open pipeline value</span></p>
+    <div class="table-wrap"><table class="data plain"><thead><tr><th>Stage</th><th class="num">Leads</th><th class="num">Value</th></tr></thead><tbody>{% for name, n, v in d.lead_stages %}<tr><td>{{ name }}</td><td class="num">{{ n }}</td><td class="num">{{ v|money }}</td></tr>{% endfor %}</tbody></table></div>
+  </div></section>{% endif %}
+</div>
+{% elif show.leads and d.lead_stages is defined %}
+<section class="card mt"><div class="card-head"><h2>Lead pipeline</h2><small>{% if d.win_rate is not none %}Win rate {{ d.win_rate }}%{% endif %}</small></div><div class="card-body">
+  <p><b style="font-size:1.5rem">{{ d.pipeline_value|money }}</b> <span class="muted">open pipeline value</span></p>
+  <div class="table-wrap"><table class="data"><thead><tr><th>Stage</th><th class="num">Leads</th><th class="num">Value</th></tr></thead><tbody>{% for name, n, v in d.lead_stages %}<tr><td>{{ name }}</td><td class="num">{{ n }}</td><td class="num">{{ v|money }}</td></tr>{% endfor %}</tbody></table></div></div></section>
+{% endif %}
+
+<div class="grid cols-2 mt">
+  {% if show.tickets and d.ticket_status is defined %}
+  <section class="card"><div class="card-head"><h2>Tickets</h2><small>{% if d.ticket_hours is not none %}Average resolution {{ d.ticket_hours }} h{% endif %}</small></div><div class="card-body">
+    <h3 style="margin-bottom:8px">By type</h3>{{ bars(d.ticket_kind) }}<h3 style="margin:16px 0 8px">By status</h3>{{ bars(d.ticket_status) }}</div></section>
+  {% endif %}
+  {% if show.recruitment and d.funnel is defined %}
+  <section class="card"><div class="card-head"><h2>Recruitment funnel</h2></div><div class="card-body">{{ bars(d.funnel) }}</div></section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,66 @@
+{% extends 'base.html' %}
+{% from '_macros.html' import pager, empty with context %}
+{% block title %}Tasks{% endblock %}
+{% block heading %}Tasks{% endblock %}
+{% block subheading %}Track work from first assignment to approved completion.{% endblock %}
+{% block actions %}
+  <div class="tabs" style="margin:0;border:0">
+    <a class="{{ 'on' if view != 'board' }}" href="{{ url_for('tasks.index', view='list', scope=scope, q=q or None, status=status or None, priority=priority or None, dept=dept, assignee=assignee) }}">List</a>
+    <a class="{{ 'on' if view == 'board' }}" href="{{ url_for('tasks.index', view='board', scope=scope, q=q or None, status=status or None, priority=priority or None, dept=dept, assignee=assignee) }}">Board</a>
+  </div>
+  {% if has_perm(current_user, 'tasks.create') %}<a class="btn" href="{{ url_for('tasks.new') }}">{{ icon('plus', 16) }} New task</a>{% endif %}
+{% endblock %}
+{% block content %}
+<form class="filters" method="get">
+  <input type="hidden" name="view" value="{{ view }}">
+  <div class="f"><label for="scope">Show</label><select id="scope" name="scope" data-autosubmit>
+    <option value="mine"{% if scope == 'mine' %} selected{% endif %}>Assigned to me</option>
+    <option value="created"{% if scope == 'created' %} selected{% endif %}>Created by me</option>
+    <option value="all"{% if scope == 'all' %} selected{% endif %}>Everything I can see</option></select></div>
+  <div class="f"><label for="q">Search</label><input id="q" name="q" type="search" value="{{ q }}" placeholder="Title or details"></div>
+  <div class="f"><label for="status">Status</label><select id="status" name="status" data-autosubmit>
+    <option value="">Any</option><option value="open"{% if status == 'open' %} selected{% endif %}>Open (not finished)</option><option value="overdue"{% if status == 'overdue' %} selected{% endif %}>Overdue</option>
+    {% for k, n in [('todo','Assigned'),('accepted','Accepted'),('in_progress','In progress'),('blocked','Blocked'),('in_review','In review'),('revision','Revision requested'),('completed','Completed'),('rejected','Rejected'),('cancelled','Cancelled')] %}<option value="{{ k }}"{% if status == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  <div class="f"><label for="priority">Priority</label><select id="priority" name="priority" data-autosubmit><option value="">Any</option>
+    {% for k, n in [('low','Low'),('medium','Medium'),('high','High'),('urgent','Urgent')] %}<option value="{{ k }}"{% if priority == k %} selected{% endif %}>{{ n }}</option>{% endfor %}</select></div>
+  {% if current_user.is_admin_level %}<div class="f"><label for="dept">Department</label><select id="dept" name="dept" data-autosubmit><option value="">All</option>{% for d in departments %}<option value="{{ d.id }}"{% if dept == d.id %} selected{% endif %}>{{ d.name }}</option>{% endfor %}</select></div>{% endif %}
+  {% if people|length > 1 %}<div class="f"><label for="assignee">Assignee</label><select id="assignee" name="assignee" data-autosubmit><option value="">Anyone</option>{% for p in people %}<option value="{{ p.id }}"{% if assignee == p.id %} selected{% endif %}>{{ p.name }}</option>{% endfor %}</select></div>{% endif %}
+  <button class="btn secondary" type="submit">Apply</button>
+</form>
+
+{% if columns %}
+  <div class="board">
+    {% for col in columns %}
+    <section class="col {{ col.key }}" aria-label="{{ col.label }}">
+      <div class="col-head"><b>{{ col.label }}</b><span class="n">{{ col.count }}</span></div>
+      <div class="col-body">
+        {% for t in col.tasks %}
+        <article class="kcard">
+          <a class="t" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a>
+          <div class="meta"><span>{{ t.assignee.name if t.assignee else 'Unassigned' }}</span>{{ badge(t.priority) }}</div>
+          <div class="meta"><span class="{{ 'overdue' if t.is_overdue }}">{{ 'Due ' ~ (t.due_date|datefmt('%d %b')) if t.due_date else 'No due date' }}</span></div>
+        </article>
+        {% else %}<p class="muted" style="padding:6px">Nothing here.</p>{% endfor %}
+        {% if col.count > col.tasks|length %}<small class="muted" style="padding:0 6px">Showing {{ col.tasks|length }} of {{ col.count }}. Use the list view for the rest.</small>{% endif %}
+      </div>
+    </section>
+    {% endfor %}
+  </div>
+{% elif pager.items %}
+  <div class="table-wrap"><table class="data">
+    <thead><tr><th>Task</th><th>Department</th><th>Assigned to</th><th>Priority</th><th>Due</th><th>Status</th></tr></thead>
+    <tbody>
+    {% for t in pager.items %}
+      <tr><td><a class="title" href="{{ url_for('tasks.detail', tid=t.id) }}">{{ t.title }}</a><small>Created by {{ t.created_by.name }}</small></td>
+        <td>{{ t.department.name if t.department else '—' }}</td><td>{{ t.assignee.name if t.assignee else '—' }}</td>
+        <td>{{ badge(t.priority) }}</td>
+        <td class="nowrap">{{ t.due_date|datefmt }}{% if t.is_overdue %}<small class="overdue">Overdue</small>{% endif %}</td>
+        <td>{{ badge(t.status) }}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pager(pager) }}
+{% else %}
+  <div class="card">{% call empty('No tasks found', 'Change the filters, or create a new task.', 'check-square') %}{% endcall %}</div>
+{% endif %}
+{% endblock %}
