@@ -8,7 +8,7 @@ app = create_app()
 
 if __name__ == "__main__":
     host = os.environ.get("HIMS_HOST", "0.0.0.0")   # 0.0.0.0 = reachable from other laptops on the LAN
-    port = int(os.environ.get("HIMS_PORT", "8000"))
+    port = int(os.environ.get("PORT") or os.environ.get("HIMS_PORT", "8000"))
     print("=" * 62)
     print("  Home Mate HIMS is starting")
     print(f"  On this computer : http://localhost:{port}")
